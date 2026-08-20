@@ -4,6 +4,7 @@ import { useTheme } from './ThemeContext'
 import { supabase } from './lib/supabaseClient'
 import ThemeToggle from './components/ThemeToggle'
 import ConfigErrorScreen from './components/ConfigErrorScreen'
+import ProfileMissingScreen from './components/ProfileMissingScreen'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import PendingActivation from './pages/PendingActivation'
@@ -11,7 +12,7 @@ import AthleteDashboard from './pages/AthleteDashboard'
 import CoachDashboard from './pages/CoachDashboard'
 
 export default function App() {
-  const { session, profile, loading, configError } = useAuth()
+  const { session, profile, loading, configError, refreshProfile } = useAuth()
   const { effective } = useTheme()
   const logoSrc = effective === 'dark' ? './icon-192.png' : './icon-light-192.png'
 
@@ -27,42 +28,46 @@ export default function App() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <ThemeToggle />
-          {session && profile && (
+          {session && (
             <>
-              <span className="role-pill">{profile.role}</span>
+              {profile && <span className="role-pill">{profile.role}</span>}
               <button className="secondary" onClick={() => supabase.auth.signOut()}>Esci</button>
             </>
           )}
         </div>
       </div>
 
-      <Routes>
-        {!session && (
-          <>
-            <Route path="/login" element={<Login />} />
-            <Route path="/registrati" element={<Register />} />
-            <Route path="*" element={<Navigate to="/login" replace />} />
-          </>
-        )}
-        {session && profile?.role === 'pending' && (
-          <>
-            <Route path="/attiva" element={<PendingActivation />} />
-            <Route path="*" element={<Navigate to="/attiva" replace />} />
-          </>
-        )}
-        {session && profile?.role === 'athlete' && (
-          <>
-            <Route path="/" element={<AthleteDashboard />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </>
-        )}
-        {session && profile?.role === 'coach' && (
-          <>
-            <Route path="/" element={<CoachDashboard />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </>
-        )}
-      </Routes>
+      {session && !profile ? (
+        <ProfileMissingScreen onRetry={refreshProfile} onSignOut={() => supabase.auth.signOut()} />
+      ) : (
+        <Routes>
+          {!session && (
+            <>
+              <Route path="/login" element={<Login />} />
+              <Route path="/registrati" element={<Register />} />
+              <Route path="*" element={<Navigate to="/login" replace />} />
+            </>
+          )}
+          {session && profile?.role === 'pending' && (
+            <>
+              <Route path="/attiva" element={<PendingActivation />} />
+              <Route path="*" element={<Navigate to="/attiva" replace />} />
+            </>
+          )}
+          {session && profile?.role === 'athlete' && (
+            <>
+              <Route path="/" element={<AthleteDashboard />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </>
+          )}
+          {session && profile?.role === 'coach' && (
+            <>
+              <Route path="/" element={<CoachDashboard />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </>
+          )}
+        </Routes>
+      )}
     </div>
   )
 }
