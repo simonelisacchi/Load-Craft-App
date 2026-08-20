@@ -1,0 +1,16 @@
+{
+  "name": "Corse — Analisi Allenamento",
+  "short_name": "Corse",
+  "description": "Carica le corse, segui VO2max e carico di allenamento, ricevi note e schede dal tuo coach.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#10141a",
+  "theme_color": "#10141a",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
