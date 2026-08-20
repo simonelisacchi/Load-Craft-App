@@ -26,13 +26,27 @@ as $$
   );
 $$;
 
+-- Funzione di supporto: recupera il coach_id dell'utente corrente
+-- "bypassando" temporaneamente le regole (SECURITY DEFINER) — serve per
+-- evitare che la regola su profiles interroghi profiles stessa, cosa che
+-- causerebbe un errore di ricorsione infinita in Postgres.
+create or replace function my_coach_id()
+returns uuid
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select coach_id from profiles where id = auth.uid();
+$$;
+
 -- PROFILES: vedo il mio profilo, il profilo del mio coach, e (se sono
 -- coach) i profili dei miei atleti.
 create policy "profiles_select" on profiles for select
   using (
     id = auth.uid()
     or coach_id = auth.uid()
-    or id = (select coach_id from profiles where id = auth.uid())
+    or id = my_coach_id()
   );
 
 create policy "profiles_update_own" on profiles for update

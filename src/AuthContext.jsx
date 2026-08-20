@@ -6,6 +6,7 @@ const AuthCtx = createContext(null)
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null)
   const [profile, setProfile] = useState(null)
+  const [profileError, setProfileError] = useState(null)
   const [loading, setLoading] = useState(true)
 
   const loadProfile = useCallback(async (uid) => {
@@ -13,14 +14,22 @@ export function AuthProvider({ children }) {
       setProfile(null)
       return
     }
-    const { data } = await supabase.from('profiles').select('*').eq('id', uid).single()
+    const { data, error } = await supabase.from('profiles').select('*').eq('id', uid).single()
+    if (error) {
+      // Non nascondiamo più l'errore: lo teniamo per mostrarlo a schermo
+      // (es. "infinite recursion detected in policy for relation profiles",
+      // o un problema di permessi) invece di far sembrare che il profilo
+      // semplicemente non esista.
+      setProfileError(error)
+      setProfile(null)
+      return
+    }
+    setProfileError(null)
     setProfile(data || null)
   }, [])
 
   useEffect(() => {
     if (!supabase) {
-      // configError è già pronto: App.jsx mostrerà lo schermo diagnostico,
-      // qui basta non restare bloccati sul caricamento.
       setLoading(false)
       return
     }
@@ -39,7 +48,7 @@ export function AuthProvider({ children }) {
   const refreshProfile = useCallback(() => loadProfile(session?.user?.id), [loadProfile, session])
 
   return (
-    <AuthCtx.Provider value={{ session, profile, loading, refreshProfile, configError }}>
+    <AuthCtx.Provider value={{ session, profile, loading, refreshProfile, configError, profileError }}>
       {children}
     </AuthCtx.Provider>
   )

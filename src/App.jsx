@@ -12,7 +12,7 @@ import AthleteDashboard from './pages/AthleteDashboard'
 import CoachDashboard from './pages/CoachDashboard'
 
 export default function App() {
-  const { session, profile, loading, configError, refreshProfile } = useAuth()
+  const { session, profile, loading, configError, refreshProfile, profileError } = useAuth()
   const { effective } = useTheme()
   const logoSrc = effective === 'dark' ? './icon-192.png' : './icon-light-192.png'
 
@@ -38,7 +38,7 @@ export default function App() {
       </div>
 
       {session && !profile ? (
-        <ProfileMissingScreen onRetry={refreshProfile} onSignOut={() => supabase.auth.signOut()} />
+        <ProfileMissingScreen onRetry={refreshProfile} onSignOut={() => supabase.auth.signOut()} error={profileError} />
       ) : (
         <Routes>
           {!session && (
