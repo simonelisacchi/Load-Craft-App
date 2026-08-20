@@ -19,16 +19,24 @@ function fmtDateTime(d) {
   if (!d) return '—'
   return new Date(d).toLocaleString('it-IT', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
+function fmtMinKm(s) {
+  if (!Number.isFinite(s)) return '—'
+  const m = Math.floor(s / 60)
+  const sec = Math.round(s % 60)
+  return `${m}:${sec.toString().padStart(2, '0')}`
+}
 
 export default function ActivityDetail({ activityId, onClose }) {
   const [activity, setActivity] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [hoverT, setHoverT] = useState(null)
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
     setError(null)
+    setHoverT(null)
     supabase.from('activities').select('*').eq('id', activityId).single().then(({ data, error }) => {
       if (cancelled) return
       if (error) setError(error.message)
@@ -45,7 +53,10 @@ export default function ActivityDetail({ activityId, onClose }) {
   const record = activity.record_stream || []
   const hrPoints = record.filter((p) => Number.isFinite(p.hr)).map((p) => ({ x: p.t, y: p.hr }))
   const pacePoints = record.filter((p) => Number.isFinite(p.paceSecPerKm) && p.paceSecPerKm > 0 && p.paceSecPerKm < 1200).map((p) => ({ x: p.t, y: p.paceSecPerKm }))
+  const speedPoints = record.filter((p) => Number.isFinite(p.paceSecPerKm) && p.paceSecPerKm > 0 && p.paceSecPerKm < 1200).map((p) => ({ x: p.t, y: 3600 / p.paceSecPerKm }))
   const elePoints = record.filter((p) => Number.isFinite(p.ele)).map((p) => ({ x: p.t, y: p.ele }))
+
+  const hasCharts = hrPoints.length > 1 || pacePoints.length > 1 || elePoints.length > 1
 
   return (
     <div className="card" style={{ borderColor: 'var(--accent)' }}>
@@ -88,22 +99,30 @@ export default function ActivityDetail({ activityId, onClose }) {
         </div>
       </div>
 
-      <RouteMap record={record} />
+      <RouteMap record={record} hoverT={hoverT} />
 
-      <div style={{ marginTop: 18 }}>
-        {hrPoints.length > 1 && (
-          <LineChart points={hrPoints} label="Frequenza cardiaca" unit=" bpm" color="var(--coral)" />
-        )}
-        {pacePoints.length > 1 && (
-          <LineChart points={pacePoints} label="Passo" unit="/km" color="var(--accent)" invert formatY={fmtPace} />
-        )}
-        {elePoints.length > 1 && (
-          <LineChart points={elePoints} label="Altitudine" unit=" m" color="var(--amber)" />
-        )}
-        {hrPoints.length <= 1 && pacePoints.length <= 1 && elePoints.length <= 1 && (
-          <p className="muted" style={{ fontSize: '0.85rem' }}>Nessuno stream dettagliato disponibile per questa corsa.</p>
-        )}
-      </div>
+      {hasCharts && (
+        <div style={{ marginTop: 18 }}>
+          <p className="muted" style={{ fontSize: '0.78rem', marginTop: 0, marginBottom: 10 }}>
+            Passa il dito o il mouse su un grafico: il punto corrispondente compare anche sugli altri grafici e sulla mappa.
+          </p>
+          {hrPoints.length > 1 && (
+            <LineChart points={hrPoints} label="Frequenza cardiaca" unit=" bpm" color="var(--coral)" hoverT={hoverT} onHover={setHoverT} />
+          )}
+          {pacePoints.length > 1 && (
+            <LineChart points={pacePoints} label="Passo" unit="/km" color="var(--accent)" invert formatY={fmtMinKm} hoverT={hoverT} onHover={setHoverT} />
+          )}
+          {speedPoints.length > 1 && (
+            <LineChart points={speedPoints} label="Velocità" unit=" km/h" color="var(--zone-safe-fg)" formatY={(v) => v.toFixed(1)} hoverT={hoverT} onHover={setHoverT} />
+          )}
+          {elePoints.length > 1 && (
+            <LineChart points={elePoints} label="Altitudine" unit=" m" color="var(--amber)" hoverT={hoverT} onHover={setHoverT} />
+          )}
+        </div>
+      )}
+      {!hasCharts && (
+        <p className="muted" style={{ fontSize: '0.85rem', marginTop: 14 }}>Nessuno stream dettagliato disponibile per questa corsa.</p>
+      )}
     </div>
   )
 }
