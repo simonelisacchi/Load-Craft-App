@@ -1,6 +1,7 @@
-// Parser GPX: legge i punti traccia (lat/lon/ele/tempo) e ricostruisce
-// distanza (formula di Haversine) e ritmo, dato che il GPX non contiene
-// la FC quasi mai (a meno di estensioni non standard, qui ignorate).
+// Parser GPX: legge i punti traccia (lat/lon/ele/tempo), FC/cadenza dalle
+// estensioni Garmin (namespace gpxtpx, ns3, o altri prefissi — cercata
+// per nome locale così funziona con qualunque prefisso) e ricostruisce
+// distanza (formula di Haversine) e ritmo.
 
 function haversineMeters(lat1, lon1, lat2, lon2) {
   const R = 6371000
@@ -11,6 +12,16 @@ function haversineMeters(lat1, lon1, lat2, lon2) {
     Math.sin(dLat / 2) ** 2 +
     Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2
   return 2 * R * Math.asin(Math.sqrt(a))
+}
+
+// Cerca un elemento per nome locale, ignorando il prefisso del
+// namespace (gpxtpx:hr, ns3:hr, ecc. sono tutti "hr" per noi).
+function findByLocalName(root, name) {
+  const all = root.getElementsByTagName('*')
+  for (let i = 0; i < all.length; i++) {
+    if (all[i].localName && all[i].localName.toLowerCase() === name) return all[i]
+  }
+  return null
 }
 
 export function parseGpx(text) {
@@ -32,6 +43,9 @@ export function parseGpx(text) {
     const time = timeEl ? new Date(timeEl.textContent) : null
     if (!startTime && time) startTime = time
 
+    const hrEl = findByLocalName(pt, 'hr')
+    const hr = hrEl ? parseFloat(hrEl.textContent) : null
+
     if (prev) {
       totalDist += haversineMeters(prev.lat, prev.lon, lat, lon)
     }
@@ -41,7 +55,7 @@ export function parseGpx(text) {
     const segDist = prev ? haversineMeters(prev.lat, prev.lon, lat, lon) : 0
     const paceSecPerKm = dt && segDist > 0.5 ? dt / (segDist / 1000) : null
 
-    record.push({ t, lat, lon, ele, hr: null, paceSecPerKm, grade: null })
+    record.push({ t, lat, lon, ele, hr: Number.isFinite(hr) ? hr : null, paceSecPerKm, grade: null })
     prev = { lat, lon, time }
   }
 
