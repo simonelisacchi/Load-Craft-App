@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
-import { supabase } from './lib/supabaseClient'
+import { supabase, configError } from './lib/supabaseClient'
 
 const AuthCtx = createContext(null)
 
@@ -9,7 +9,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   const loadProfile = useCallback(async (uid) => {
-    if (!uid) {
+    if (!uid || !supabase) {
       setProfile(null)
       return
     }
@@ -18,6 +18,12 @@ export function AuthProvider({ children }) {
   }, [])
 
   useEffect(() => {
+    if (!supabase) {
+      // configError è già pronto: App.jsx mostrerà lo schermo diagnostico,
+      // qui basta non restare bloccati sul caricamento.
+      setLoading(false)
+      return
+    }
     supabase.auth.getSession().then(async ({ data }) => {
       setSession(data.session)
       await loadProfile(data.session?.user?.id)
@@ -33,7 +39,7 @@ export function AuthProvider({ children }) {
   const refreshProfile = useCallback(() => loadProfile(session?.user?.id), [loadProfile, session])
 
   return (
-    <AuthCtx.Provider value={{ session, profile, loading, refreshProfile }}>
+    <AuthCtx.Provider value={{ session, profile, loading, refreshProfile, configError }}>
       {children}
     </AuthCtx.Provider>
   )

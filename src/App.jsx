@@ -3,6 +3,7 @@ import { useAuth } from './AuthContext'
 import { useTheme } from './ThemeContext'
 import { supabase } from './lib/supabaseClient'
 import ThemeToggle from './components/ThemeToggle'
+import ConfigErrorScreen from './components/ConfigErrorScreen'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import PendingActivation from './pages/PendingActivation'
@@ -10,10 +11,11 @@ import AthleteDashboard from './pages/AthleteDashboard'
 import CoachDashboard from './pages/CoachDashboard'
 
 export default function App() {
-  const { session, profile, loading } = useAuth()
+  const { session, profile, loading, configError } = useAuth()
   const { effective } = useTheme()
   const logoSrc = effective === 'dark' ? './icon-192.png' : './icon-light-192.png'
 
+  if (configError) return <ConfigErrorScreen message={configError} />
   if (loading) return <div className="app-shell center muted" style={{ paddingTop: 80 }}>Caricamento…</div>
 
   return (
