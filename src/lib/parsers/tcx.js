@@ -6,6 +6,10 @@ export function parseTcx(text) {
   const points = Array.from(doc.getElementsByTagName('Trackpoint'))
   if (!points.length) throw new Error('Nessun Trackpoint trovato nel file TCX.')
 
+  // Alcuni export Garmin Connect mettono il titolo dell'attività qui.
+  const notesEl = doc.getElementsByTagName('Notes')[0]
+  const activityName = notesEl?.textContent?.trim() || null
+
   const record = []
   let startTime = null
   let prevTime = null
@@ -53,6 +57,7 @@ export function parseTcx(text) {
 
   return {
     source: 'tcx_upload',
+    name: activityName,
     startedAt: startTime ? startTime.toISOString() : null,
     durationS,
     distanceM: maxDist,

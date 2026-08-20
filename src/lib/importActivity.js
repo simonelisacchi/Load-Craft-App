@@ -13,6 +13,14 @@ function downsample(record, maxPoints = 3600) {
   return record.filter((_, i) => i % step === 0)
 }
 
+function friendlyFallbackName(startedAt, source) {
+  const sourceLabel = { fit_upload: 'Garmin', gpx_upload: 'GPX', tcx_upload: 'TCX' }[source] || 'Corsa'
+  if (!startedAt) return `Corsa (${sourceLabel})`
+  const d = new Date(startedAt)
+  const formatted = d.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })
+  return `Corsa del ${formatted}`
+}
+
 export async function importActivityFile(file, profile) {
   const ext = file.name.split('.').pop().toLowerCase()
   let parsed
@@ -39,7 +47,7 @@ export async function importActivityFile(file, profile) {
 
   return {
     source: parsed.source,
-    name: file.name,
+    name: parsed.name || friendlyFallbackName(parsed.startedAt, parsed.source),
     started_at: parsed.startedAt,
     duration_s: Math.round(parsed.durationS || 0),
     distance_m: parsed.distanceM ? Math.round(parsed.distanceM) : null,

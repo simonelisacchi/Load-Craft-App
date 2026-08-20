@@ -29,6 +29,11 @@ export function parseGpx(text) {
   const points = Array.from(doc.getElementsByTagName('trkpt'))
   if (!points.length) throw new Error('Nessun punto traccia trovato nel file GPX.')
 
+  // Garmin Connect, quando esporti una corsa in GPX, di solito include il
+  // titolo che hai scritto tu dentro <trk><name>...</name></trk>.
+  const trkNameEl = doc.getElementsByTagName('trk')[0]?.getElementsByTagName('name')[0]
+  const activityName = trkNameEl?.textContent?.trim() || null
+
   const record = []
   let totalDist = 0
   let prev = null
@@ -63,6 +68,7 @@ export function parseGpx(text) {
 
   return {
     source: 'gpx_upload',
+    name: activityName,
     startedAt: startTime ? startTime.toISOString() : null,
     durationS,
     distanceM: totalDist,
