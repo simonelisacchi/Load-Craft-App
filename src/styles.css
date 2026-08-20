@@ -256,6 +256,7 @@ label { font-size: 0.82rem; color: var(--muted); display: block; margin-bottom: 
 
 table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
 th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); }
+tbody tr[style*="cursor: pointer"]:hover { background: var(--surface-2); }
 th { color: var(--muted); font-weight: 600; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; }
 td.mono, th.mono { font-family: var(--font-mono); }
 

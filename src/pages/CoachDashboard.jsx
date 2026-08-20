@@ -3,6 +3,7 @@ import { useAuth } from '../AuthContext'
 import { supabase } from '../lib/supabaseClient'
 import InviteGenerator from '../components/InviteGenerator'
 import ActivityList from '../components/ActivityList'
+import ActivityDetail from '../components/ActivityDetail'
 import AcwrChart from '../components/AcwrChart'
 import NoteComposer from '../components/NoteComposer'
 import NotesPanel from '../components/NotesPanel'
@@ -48,6 +49,7 @@ export default function CoachDashboard() {
   const [tab, setTab] = useState('Dati & grafici')
   const [activities, setActivities] = useState([])
   const [notes, setNotes] = useState([])
+  const [selectedActivityId, setSelectedActivityId] = useState(null)
 
   const loadAthletes = useCallback(async () => {
     const { data } = await supabase.from('profiles').select('*').eq('coach_id', profile.id).order('full_name')
@@ -81,7 +83,7 @@ export default function CoachDashboard() {
         {!athletes.length && <p className="muted">Nessun atleta ancora. Genera un codice invito qui sopra e condividilo.</p>}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {athletes.map((a) => (
-            <button key={a.id} className={a.id === selected ? '' : 'secondary'} onClick={() => setSelected(a.id)}>
+            <button key={a.id} className={a.id === selected ? '' : 'secondary'} onClick={() => { setSelected(a.id); setSelectedActivityId(null) }}>
               {a.full_name || a.id.slice(0, 8)}
             </button>
           ))}
@@ -98,14 +100,21 @@ export default function CoachDashboard() {
 
           {tab === 'Dati & grafici' && (
             <>
-              <div className="card">
-                <h3>ACWR — {athlete.full_name}</h3>
-                <AcwrChart activities={activities} />
-              </div>
-              <div className="card">
-                <h3>Storico corse</h3>
-                <ActivityList activities={activities} />
-              </div>
+              {selectedActivityId ? (
+                <ActivityDetail activityId={selectedActivityId} onClose={() => setSelectedActivityId(null)} />
+              ) : (
+                <>
+                  <div className="card">
+                    <h3>ACWR — {athlete.full_name}</h3>
+                    <AcwrChart activities={activities} />
+                  </div>
+                  <div className="card">
+                    <h3>Storico corse</h3>
+                    <p className="muted" style={{ fontSize: '0.8rem', marginTop: -6 }}>Tocca una corsa per vedere mappa, FC e passo nel dettaglio.</p>
+                    <ActivityList activities={activities} onSelect={setSelectedActivityId} />
+                  </div>
+                </>
+              )}
             </>
           )}
 

@@ -15,7 +15,7 @@ function fmtDate(d) {
   return new Date(d).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
-export default function ActivityList({ activities }) {
+export default function ActivityList({ activities, onSelect }) {
   if (!activities?.length) {
     return <p className="muted">Nessuna corsa caricata ancora.</p>
   }
@@ -36,7 +36,12 @@ export default function ActivityList({ activities }) {
         </thead>
         <tbody>
           {activities.map((a) => (
-            <tr key={a.id}>
+            <tr
+              key={a.id}
+              onClick={() => onSelect?.(a.id)}
+              style={onSelect ? { cursor: 'pointer' } : undefined}
+              title={onSelect ? 'Apri il dettaglio della corsa' : undefined}
+            >
               <td>{fmtDate(a.started_at)}</td>
               <td className="muted">{a.source?.replace('_upload', '')}</td>
               <td className="mono">{a.distance_m ? `${(a.distance_m / 1000).toFixed(2)} km` : '—'}</td>

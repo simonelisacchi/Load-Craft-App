@@ -5,6 +5,7 @@ import ReminderBanner from '../components/ReminderBanner'
 import NotesPanel from '../components/NotesPanel'
 import ActivityUpload from '../components/ActivityUpload'
 import ActivityList from '../components/ActivityList'
+import ActivityDetail from '../components/ActivityDetail'
 import AcwrChart from '../components/AcwrChart'
 import TrainingPlanView from '../components/TrainingPlanView'
 import CheckinForm from '../components/CheckinForm'
@@ -19,6 +20,7 @@ export default function AthleteDashboard() {
   const [activities, setActivities] = useState([])
   const [notes, setNotes] = useState([])
   const [todayCheckin, setTodayCheckin] = useState(null)
+  const [selectedActivityId, setSelectedActivityId] = useState(null)
 
   const load = useCallback(async () => {
     if (!profile) return
@@ -44,7 +46,7 @@ export default function AthleteDashboard() {
 
       <div className="tabs">
         {TABS.map((t) => (
-          <button key={t} className={tab === t ? 'active' : ''} onClick={() => setTab(t)}>
+          <button key={t} className={tab === t ? 'active' : ''} onClick={() => { setTab(t); setSelectedActivityId(null) }}>
             {t}{t === 'Panoramica' && priorityCount > 0 ? ` (${priorityCount})` : ''}
           </button>
         ))}
@@ -52,19 +54,26 @@ export default function AthleteDashboard() {
 
       {tab === 'Panoramica' && (
         <>
-          <div className="card">
-            <h3>Note del coach</h3>
-            <NotesPanel notes={notes} />
-          </div>
-          <div className="card">
-            <h3>ACWR — carico acuto/cronico</h3>
-            <AcwrChart activities={activities} />
-          </div>
-          <ActivityUpload profile={profile} onDone={load} />
-          <div className="card">
-            <h3>Storico corse</h3>
-            <ActivityList activities={activities} />
-          </div>
+          {selectedActivityId ? (
+            <ActivityDetail activityId={selectedActivityId} onClose={() => setSelectedActivityId(null)} />
+          ) : (
+            <>
+              <div className="card">
+                <h3>Note del coach</h3>
+                <NotesPanel notes={notes} />
+              </div>
+              <div className="card">
+                <h3>ACWR — carico acuto/cronico</h3>
+                <AcwrChart activities={activities} />
+              </div>
+              <ActivityUpload profile={profile} onDone={load} />
+              <div className="card">
+                <h3>Storico corse</h3>
+                <p className="muted" style={{ fontSize: '0.8rem', marginTop: -6 }}>Tocca una corsa per vedere mappa, FC e passo nel dettaglio.</p>
+                <ActivityList activities={activities} onSelect={setSelectedActivityId} />
+              </div>
+            </>
+          )}
         </>
       )}
 

@@ -17,6 +17,9 @@ export function parseTcx(text) {
     const distEl = pt.getElementsByTagName('DistanceMeters')[0]
     const hrEl = pt.getElementsByTagName('HeartRateBpm')[0]
     const altEl = pt.getElementsByTagName('AltitudeMeters')[0]
+    const posEl = pt.getElementsByTagName('Position')[0]
+    const lat = posEl ? parseFloat(posEl.getElementsByTagName('LatitudeDegrees')[0]?.textContent) : null
+    const lon = posEl ? parseFloat(posEl.getElementsByTagName('LongitudeDegrees')[0]?.textContent) : null
 
     const time = timeEl ? new Date(timeEl.textContent) : null
     if (!startTime && time) startTime = time
@@ -33,7 +36,15 @@ export function parseTcx(text) {
       if (dd > 0.5) paceSecPerKm = dt / (dd / 1000)
     }
 
-    record.push({ t, hr: Number.isFinite(hr) ? hr : null, paceSecPerKm, grade: null, ele })
+    record.push({
+      t,
+      hr: Number.isFinite(hr) ? hr : null,
+      paceSecPerKm,
+      grade: null,
+      ele,
+      lat: Number.isFinite(lat) ? lat : null,
+      lon: Number.isFinite(lon) ? lon : null,
+    })
     if (time) prevTime = time
     if (dist !== null) prevDist = dist
   }

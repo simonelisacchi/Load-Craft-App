@@ -170,6 +170,9 @@ export function parseFit(arrayBuffer) {
     paceSecPerKm: r.speed && r.speed > 0.3 ? 1000 / r.speed : null,
     grade: null,
     distance: r.distance,
+    lat: r.lat,
+    lon: r.lon,
+    ele: r.altitude,
   }))
 
   const last = records[records.length - 1]
@@ -198,11 +201,15 @@ function readDataMessage(view, offset, def) {
 
 function toRecordPoint(f) {
   const altRaw = f.enhanced_altitude ?? f.altitude
+  const SEMI_TO_DEG = 180 / 2 ** 31
+  const lat = f.position_lat != null ? f.position_lat * SEMI_TO_DEG : null
+  const lon = f.position_long != null ? f.position_long * SEMI_TO_DEG : null
   return {
     timestampRaw: f.timestamp,
     hr: f.heart_rate && f.heart_rate !== 0xff ? f.heart_rate : null,
     speed: (f.enhanced_speed ?? f.speed) != null ? (f.enhanced_speed ?? f.speed) / 1000 : null,
     distance: f.distance != null ? f.distance / 100 : null,
     altitude: altRaw != null ? altRaw / 5 - 500 : null,
+    lat, lon,
   }
 }
