@@ -3,6 +3,8 @@
 // per nome locale così funziona con qualunque prefisso) e ricostruisce
 // distanza (formula di Haversine) e ritmo.
 
+import { smoothPace } from '../smoothing'
+
 function haversineMeters(lat1, lon1, lat2, lon2) {
   const R = 6371000
   const toRad = (d) => (d * Math.PI) / 180
@@ -65,6 +67,7 @@ export function parseGpx(text) {
   }
 
   const durationS = record.length ? record[record.length - 1].t : 0
+  const smoothed = smoothPace(record)
 
   return {
     source: 'gpx_upload',
@@ -72,6 +75,6 @@ export function parseGpx(text) {
     startedAt: startTime ? startTime.toISOString() : null,
     durationS,
     distanceM: totalDist,
-    record,
+    record: smoothed,
   }
 }

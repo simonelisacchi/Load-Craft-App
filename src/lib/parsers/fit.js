@@ -84,6 +84,15 @@ const RECORD_FIELDS = {
 }
 
 export function parseFit(arrayBuffer) {
+  try {
+    return parseFitInner(arrayBuffer)
+  } catch (err) {
+    if (err.message?.includes('Nessun dato')) throw err // messaggio già chiaro, non serve avvolgerlo
+    throw new Error(`Impossibile leggere questo file .fit (formato inatteso o file danneggiato). Dettaglio tecnico: ${err.message}`)
+  }
+}
+
+function parseFitInner(arrayBuffer) {
   const view = new DataView(arrayBuffer)
   const headerSize = view.getUint8(0)
   const dataSize = view.getUint32(4, true)
@@ -95,70 +104,80 @@ export function parseFit(arrayBuffer) {
   let offset = dataStart
   let lastTimestamp = null
 
-  while (offset < dataEnd) {
-    const headerByte = view.getUint8(offset)
+  while (offset < dataEnd && offset < view.byteLength) {
+    let headerByte
+    try {
+      headerByte = view.getUint8(offset)
+    } catch {
+      break // file troncato: ci fermiamo qui, teniamo quello che abbiamo già letto
+    }
     offset += 1
 
     const isCompressedTimestamp = (headerByte & 0x80) !== 0
 
-    if (isCompressedTimestamp) {
-      const localType = (headerByte >> 5) & 0x03
-      const timeOffset = headerByte & 0x1f
+    try {
+      if (isCompressedTimestamp) {
+        const localType = (headerByte >> 5) & 0x03
+        const timeOffset = headerByte & 0x1f
+        const def = localDefs[localType]
+        if (!def) break
+        const msg = readDataMessage(view, offset, def)
+        offset += def.messageSize
+        if (lastTimestamp !== null) {
+          let ts = (lastTimestamp & ~0x1f) | timeOffset
+          if (ts < lastTimestamp) ts += 32
+          lastTimestamp = ts
+          msg.fields.timestamp = ts
+        }
+        if (def.globalNum === 20) records.push(toRecordPoint(msg.fields))
+        continue
+      }
+
+      const isDefinition = (headerByte & 0x40) !== 0
+      const localType = headerByte & 0x0f
+
+      if (isDefinition) {
+        const devFlag = (headerByte & 0x20) !== 0
+        offset += 1 // reserved
+        const arch = view.getUint8(offset)
+        offset += 1
+        const littleEndian = arch === 0
+        const globalNum = view.getUint16(offset, littleEndian)
+        offset += 2
+        const numFields = view.getUint8(offset)
+        offset += 1
+        const fields = []
+        for (let i = 0; i < numFields; i++) {
+          const num = view.getUint8(offset)
+          const size = view.getUint8(offset + 1)
+          const base = view.getUint8(offset + 2)
+          fields.push({ num, size, base })
+          offset += 3
+        }
+        if (devFlag) {
+          const numDev = view.getUint8(offset)
+          offset += 1
+          offset += numDev * 3 // field num, size, dev index — ignorati
+        }
+        const messageSize = fields.reduce((a, f) => a + f.size, 0)
+        if (messageSize <= 0) break // definizione senza campi utili: meglio fermarsi che entrare in un ciclo bloccato
+        localDefs[localType] = { globalNum, littleEndian, fields, messageSize }
+        continue
+      }
+
+      // data message
       const def = localDefs[localType]
       if (!def) break
       const msg = readDataMessage(view, offset, def)
       offset += def.messageSize
-      if (lastTimestamp !== null) {
-        let ts = (lastTimestamp & ~0x1f) | timeOffset
-        if (ts < lastTimestamp) ts += 32
-        lastTimestamp = ts
-        msg.fields.timestamp = ts
-      }
+      if (msg.fields.timestamp) lastTimestamp = msg.fields.timestamp
       if (def.globalNum === 20) records.push(toRecordPoint(msg.fields))
-      continue
+    } catch {
+      // Byte fuori dai limiti del file: interrompiamo la lettura qui,
+      // ma teniamo tutti i punti "record" letti fino a questo momento
+      // invece di far fallire l'intero caricamento.
+      break
     }
-
-    const isDefinition = (headerByte & 0x40) !== 0
-    const localType = headerByte & 0x0f
-
-    if (isDefinition) {
-      const devFlag = (headerByte & 0x20) !== 0
-      offset += 1 // reserved
-      const arch = view.getUint8(offset)
-      offset += 1
-      const littleEndian = arch === 0
-      const globalNum = view.getUint16(offset, littleEndian)
-      offset += 2
-      const numFields = view.getUint8(offset)
-      offset += 1
-      const fields = []
-      for (let i = 0; i < numFields; i++) {
-        const num = view.getUint8(offset)
-        const size = view.getUint8(offset + 1)
-        const base = view.getUint8(offset + 2)
-        fields.push({ num, size, base })
-        offset += 3
-      }
-      let devFields = []
-      if (devFlag) {
-        const numDev = view.getUint8(offset)
-        offset += 1
-        for (let i = 0; i < numDev; i++) {
-          offset += 3 // field num, size, dev index — ignorati
-        }
-      }
-      const messageSize = fields.reduce((a, f) => a + f.size, 0)
-      localDefs[localType] = { globalNum, littleEndian, fields, messageSize }
-      continue
-    }
-
-    // data message
-    const def = localDefs[localType]
-    if (!def) break
-    const msg = readDataMessage(view, offset, def)
-    offset += def.messageSize
-    if (msg.fields.timestamp) lastTimestamp = msg.fields.timestamp
-    if (def.globalNum === 20) records.push(toRecordPoint(msg.fields))
   }
 
   if (!records.length) throw new Error('Nessun dato "record" trovato nel file .fit (file non valido o non un allenamento).')

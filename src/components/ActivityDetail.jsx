@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import RouteMap from './RouteMap'
 import LineChart from './LineChart'
+import { estimateVo2max } from '../lib/vo2max'
+import { computeTrimp } from '../lib/acwr'
 
 function fmtPace(s) {
   if (!s) return '—'
@@ -26,17 +28,23 @@ function fmtMinKm(s) {
   return `${m}:${sec.toString().padStart(2, '0')}`
 }
 
-export default function ActivityDetail({ activityId, onClose }) {
+// canManage: true quando la vista è aperta dall'atleta proprietario della
+// corsa — abilita "Elimina" e "Ricalcola" (azioni sui propri dati, non
+// disponibili al coach, coerente con le regole del database).
+export default function ActivityDetail({ activityId, onClose, canManage = false, onDeleted }) {
   const [activity, setActivity] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [hoverT, setHoverT] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [actionMsg, setActionMsg] = useState(null)
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
     setError(null)
     setHoverT(null)
+    setActionMsg(null)
     supabase.from('activities').select('*').eq('id', activityId).single().then(({ data, error }) => {
       if (cancelled) return
       if (error) setError(error.message)
@@ -45,6 +53,52 @@ export default function ActivityDetail({ activityId, onClose }) {
     })
     return () => { cancelled = true }
   }, [activityId])
+
+  async function handleDelete() {
+    if (!confirm('Eliminare definitivamente questa corsa? Non si può annullare.')) return
+    setBusy(true)
+    const { error } = await supabase.from('activities').delete().eq('id', activityId)
+    setBusy(false)
+    if (error) {
+      setActionMsg({ type: 'error', text: error.message })
+      return
+    }
+    onDeleted?.()
+  }
+
+  async function handleRecalculate() {
+    setBusy(true)
+    setActionMsg(null)
+    try {
+      const { data: prof, error: profError } = await supabase
+        .from('profiles')
+        .select('hr_rest, hr_max, sex')
+        .eq('id', activity.user_id)
+        .single()
+      if (profError) throw profError
+      if (!prof.hr_rest || !prof.hr_max) {
+        setActionMsg({ type: 'error', text: 'Nel profilo mancano ancora FC riposo/massima: completale prima di ricalcolare.' })
+        setBusy(false)
+        return
+      }
+      const record = activity.record_stream || []
+      const vo2 = estimateVo2max(record, { hrRest: prof.hr_rest, hrMax: prof.hr_max, sex: prof.sex })
+      const trimp = computeTrimp(record, { hrRest: prof.hr_rest, hrMax: prof.hr_max, sex: prof.sex }, activity.duration_s / 60)
+      const updated = {
+        vo2max_estimate: vo2.vo2max,
+        vo2max_confidence: vo2.confidence,
+        training_load: trimp ? Math.round(trimp * 10) / 10 : null,
+      }
+      const { error: updError } = await supabase.from('activities').update(updated).eq('id', activityId)
+      if (updError) throw updError
+      setActivity((a) => ({ ...a, ...updated }))
+      setActionMsg({ type: 'success', text: 'Ricalcolato con i valori attuali del profilo.' })
+    } catch (err) {
+      setActionMsg({ type: 'error', text: err.message || String(err) })
+    } finally {
+      setBusy(false)
+    }
+  }
 
   if (loading) return <div className="card"><p className="muted">Caricamento corsa…</p></div>
   if (error) return <div className="card"><div className="error-box">{error}</div></div>
@@ -60,13 +114,25 @@ export default function ActivityDetail({ activityId, onClose }) {
 
   return (
     <div className="card" style={{ borderColor: 'var(--accent)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4, flexWrap: 'wrap', gap: 8 }}>
         <div>
           <h3 style={{ margin: 0 }}>{activity.name || 'Corsa'}</h3>
           <p className="muted" style={{ margin: '2px 0 0', fontSize: '0.85rem' }}>{fmtDateTime(activity.started_at)} · {activity.source?.replace('_upload', '')}</p>
         </div>
-        <button className="secondary" onClick={onClose}>Chiudi</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {canManage && (
+            <>
+              <button className="secondary" onClick={handleRecalculate} disabled={busy} title="Rifà il calcolo di VO2max e carico usando i valori attuali del profilo">Ricalcola</button>
+              <button className="danger" onClick={handleDelete} disabled={busy}>Elimina</button>
+            </>
+          )}
+          <button className="secondary" onClick={onClose}>Chiudi</button>
+        </div>
       </div>
+
+      {actionMsg && (
+        <div className={actionMsg.type === 'error' ? 'error-box' : 'success-box'}>{actionMsg.text}</div>
+      )}
 
       <div className="stat-grid" style={{ margin: '16px 0' }}>
         <div>

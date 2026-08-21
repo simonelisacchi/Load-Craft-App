@@ -19,25 +19,32 @@ export default function CoachPlanEditor({ athleteId, onChanged }) {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const { data: plans } = await supabase
+    setError(null)
+    const { data: plans, error: plansError } = await supabase
       .from('training_plans')
       .select('*')
       .eq('athlete_id', athleteId)
       .eq('active', true)
       .order('created_at', { ascending: false })
       .limit(1)
+    if (plansError) {
+      setError(plansError.message)
+      setLoading(false)
+      return
+    }
     const p = plans?.[0] || null
     setPlan(p)
     if (p) {
       setTitle(p.title)
       setWeeks(p.weeks)
       setStartDate(p.start_date)
-      const { data: its } = await supabase
+      const { data: its, error: itsError } = await supabase
         .from('training_plan_items')
         .select('*')
         .eq('plan_id', p.id)
         .order('week_number')
         .order('day_number')
+      if (itsError) setError(itsError.message)
       setItems(its || [])
     } else {
       setItems([])

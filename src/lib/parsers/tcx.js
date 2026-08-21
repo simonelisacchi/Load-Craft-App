@@ -1,5 +1,6 @@
 // Parser TCX: usa la distanza cumulativa già presente nel file (a
 // differenza del GPX non serve ricalcolarla con Haversine).
+import { smoothPace } from '../smoothing'
 
 export function parseTcx(text) {
   const doc = new DOMParser().parseFromString(text, 'application/xml')
@@ -54,6 +55,7 @@ export function parseTcx(text) {
   }
 
   const durationS = record.length ? record[record.length - 1].t : 0
+  const smoothed = smoothPace(record)
 
   return {
     source: 'tcx_upload',
@@ -61,6 +63,6 @@ export function parseTcx(text) {
     startedAt: startTime ? startTime.toISOString() : null,
     durationS,
     distanceM: maxDist,
-    record,
+    record: smoothed,
   }
 }

@@ -15,6 +15,32 @@ export default function ActivityUpload({ profile, onDone }) {
     setOkMsg(null)
     try {
       const parsed = await importActivityFile(file, profile)
+
+      // Controllo doppioni: stessa persona, corsa iniziata entro 5 minuti
+      // da un'altra già presente — capita facilmente ricaricando per
+      // sbaglio lo stesso file due volte.
+      if (parsed.started_at) {
+        const windowMin = 5 * 60 * 1000
+        const from = new Date(new Date(parsed.started_at).getTime() - windowMin).toISOString()
+        const to = new Date(new Date(parsed.started_at).getTime() + windowMin).toISOString()
+        const { data: similar } = await supabase
+          .from('activities')
+          .select('id, name, started_at')
+          .eq('user_id', profile.id)
+          .gte('started_at', from)
+          .lte('started_at', to)
+        if (similar?.length) {
+          const ok = confirm(
+            `Hai già una corsa caricata vicino a questo orario ("${similar[0].name}"). Caricare comunque questo file come corsa separata?`
+          )
+          if (!ok) {
+            setBusy(false)
+            e.target.value = ''
+            return
+          }
+        }
+      }
+
       const { error: insertError } = await supabase.from('activities').insert({
         user_id: profile.id,
         ...parsed,

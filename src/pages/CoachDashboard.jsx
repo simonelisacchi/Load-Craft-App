@@ -12,8 +12,10 @@ import TrainingPlanBuilder from '../components/TrainingPlanBuilder'
 import TrainingPlanView from '../components/TrainingPlanView'
 import CoachPlanEditor from '../components/CoachPlanEditor'
 import BodyCompForm from '../components/BodyCompForm'
+import BodyCompHistory from '../components/BodyCompHistory'
+import CheckinHistory from '../components/CheckinHistory'
 
-const TABS = ['Dati & grafici', 'Note', 'Scheda', 'Plicometrie']
+const TABS = ['Dati & grafici', 'Note', 'Scheda', 'Salute']
 
 function SchedaTab({ coachId, athlete, onChanged }) {
   const [showNewPlan, setShowNewPlan] = useState(false)
@@ -52,36 +54,44 @@ export default function CoachDashboard() {
   const [notes, setNotes] = useState([])
   const [selectedActivityId, setSelectedActivityId] = useState(null)
   const [newActivityIds, setNewActivityIds] = useState(new Set())
+  const [athletesError, setAthletesError] = useState(null)
+  const [dataError, setDataError] = useState(null)
+  const [bodyCompKey, setBodyCompKey] = useState(0)
 
   const loadAthletes = useCallback(async () => {
-    const { data } = await supabase.from('profiles').select('*').eq('coach_id', profile.id).order('full_name')
+    setAthletesError(null)
+    const { data, error } = await supabase.from('profiles').select('*').eq('coach_id', profile.id).order('full_name')
+    if (error) {
+      setAthletesError(error.message)
+      return
+    }
     setAthletes(data || [])
-    if (!selected && data?.length) setSelected(data[0].id)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setSelected((prev) => prev || data?.[0]?.id || null)
   }, [profile])
 
   useEffect(() => { loadAthletes() }, [loadAthletes])
 
   const loadAthleteData = useCallback(async () => {
     if (!selected) return
-    const [{ data: acts }, { data: ns }] = await Promise.all([
+    setDataError(null)
+    const [actsRes, notesRes] = await Promise.all([
       supabase.from('activities').select('*').eq('user_id', selected).order('started_at', { ascending: false }),
       supabase.from('coach_notes').select('*').eq('athlete_id', selected).order('created_at', { ascending: false }),
     ])
-    setActivities(acts || [])
-    setNotes(ns || [])
+    if (actsRes.error || notesRes.error) {
+      setDataError((actsRes.error || notesRes.error).message)
+    }
+    const acts = actsRes.data || []
+    setActivities(acts)
+    setNotes(notesRes.data || [])
 
     // Evidenzia le attività caricate dopo l'ultima volta che questo
     // coach ha guardato questo atleta (segnalibro salvato sul
     // dispositivo, per non dover aggiungere colonne al database).
     const lsKey = `lastSeenActivities_${profile.id}_${selected}`
     const lastSeen = localStorage.getItem(lsKey)
-    const created = (acts || []).map((a) => a.created_at).filter(Boolean)
-    if (lastSeen) {
-      setNewActivityIds(new Set((acts || []).filter((a) => a.created_at && a.created_at > lastSeen).map((a) => a.id)))
-    } else {
-      setNewActivityIds(new Set())
-    }
+    const created = acts.map((a) => a.created_at).filter(Boolean)
+    setNewActivityIds(lastSeen ? new Set(acts.filter((a) => a.created_at && a.created_at > lastSeen).map((a) => a.id)) : new Set())
     if (created.length) {
       localStorage.setItem(lsKey, created.reduce((max, c) => (c > max ? c : max), created[0]))
     }
@@ -97,7 +107,8 @@ export default function CoachDashboard() {
 
       <div className="card">
         <h3>Atleti collegati</h3>
-        {!athletes.length && <p className="muted">Nessun atleta ancora. Genera un codice invito qui sopra e condividilo.</p>}
+        {athletesError && <div className="error-box">{athletesError}</div>}
+        {!athletes.length && !athletesError && <p className="muted">Nessun atleta ancora. Genera un codice invito qui sopra e condividilo.</p>}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {athletes.map((a) => (
             <button key={a.id} className={a.id === selected ? '' : 'secondary'} onClick={() => { setSelected(a.id); setSelectedActivityId(null) }}>
@@ -114,6 +125,8 @@ export default function CoachDashboard() {
               <button key={t} className={tab === t ? 'active' : ''} onClick={() => setTab(t)}>{t}</button>
             ))}
           </div>
+
+          {dataError && <div className="error-box">Non sono riuscito a caricare tutti i dati: {dataError}</div>}
 
           {tab === 'Dati & grafici' && (
             <>
@@ -156,8 +169,19 @@ export default function CoachDashboard() {
             <SchedaTab coachId={profile.id} athlete={athlete} onChanged={loadAthleteData} />
           )}
 
-          {tab === 'Plicometrie' && (
-            <BodyCompForm coachId={profile.id} athleteId={athlete.id} />
+          {tab === 'Salute' && (
+            <>
+              <div className="card">
+                <h3>Check-in di {athlete.full_name}</h3>
+                <p className="muted" style={{ fontSize: '0.8rem', marginTop: -6 }}>TQR, sonno, FC a riposo — inseriti dall'atleta, di sola lettura per te.</p>
+                <CheckinHistory userId={athlete.id} />
+              </div>
+              <BodyCompForm coachId={profile.id} athleteId={athlete.id} onSaved={() => setBodyCompKey((k) => k + 1)} />
+              <div className="card">
+                <h3>Storico misurazioni</h3>
+                <BodyCompHistory key={bodyCompKey} userId={athlete.id} />
+              </div>
+            </>
           )}
         </>
       )}

@@ -8,23 +8,35 @@ function randomCode() {
 export default function InviteGenerator({ coachId }) {
   const [invites, setInvites] = useState([])
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
 
   async function load() {
-    const { data } = await supabase.from('invites').select('*').eq('created_by', coachId).order('created_at', { ascending: false })
+    const { data, error } = await supabase.from('invites').select('*').eq('created_by', coachId).order('created_at', { ascending: false })
+    if (error) {
+      setError(error.message)
+      return
+    }
+    setError(null)
     setInvites(data || [])
   }
   useEffect(() => { load() }, [coachId])
 
   async function generate() {
     setBusy(true)
-    await supabase.from('invites').insert({ code: randomCode(), created_by: coachId })
+    setError(null)
+    const { error } = await supabase.from('invites').insert({ code: randomCode(), created_by: coachId })
     setBusy(false)
+    if (error) {
+      setError(error.message)
+      return
+    }
     load()
   }
 
   return (
     <div className="card">
       <h3>Inviti atleti</h3>
+      {error && <div className="error-box">{error}</div>}
       <button onClick={generate} disabled={busy}>Genera nuovo codice invito</button>
       <div style={{ marginTop: 14 }}>
         {invites.map((inv) => (

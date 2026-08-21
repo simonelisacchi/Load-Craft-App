@@ -10,6 +10,7 @@ import AcwrChart from '../components/AcwrChart'
 import Vo2maxCard from '../components/Vo2maxCard'
 import TrainingPlanView from '../components/TrainingPlanView'
 import CheckinForm from '../components/CheckinForm'
+import CheckinHistory from '../components/CheckinHistory'
 import ProfileForm from '../components/ProfileForm'
 import SheetsSyncCard from '../components/SheetsSyncCard'
 
@@ -22,17 +23,21 @@ export default function AthleteDashboard() {
   const [notes, setNotes] = useState([])
   const [todayCheckin, setTodayCheckin] = useState(null)
   const [selectedActivityId, setSelectedActivityId] = useState(null)
+  const [loadError, setLoadError] = useState(null)
 
   const load = useCallback(async () => {
     if (!profile) return
-    const [{ data: acts }, { data: ns }, { data: chk }] = await Promise.all([
+    setLoadError(null)
+    const [actsRes, notesRes, chkRes] = await Promise.all([
       supabase.from('activities').select('*').eq('user_id', profile.id).order('started_at', { ascending: false }),
       supabase.from('coach_notes').select('*').eq('athlete_id', profile.id).order('created_at', { ascending: false }),
       supabase.from('daily_checkins').select('*').eq('user_id', profile.id).eq('the_date', new Date().toISOString().slice(0, 10)).maybeSingle(),
     ])
-    setActivities(acts || [])
-    setNotes(ns || [])
-    setTodayCheckin(chk || null)
+    const firstError = actsRes.error || notesRes.error || (chkRes.error && chkRes.error.code !== 'PGRST116' ? chkRes.error : null)
+    if (firstError) setLoadError(firstError.message)
+    setActivities(actsRes.data || [])
+    setNotes(notesRes.data || [])
+    setTodayCheckin(chkRes.data || null)
   }, [profile])
 
   useEffect(() => { load() }, [load])
@@ -53,10 +58,17 @@ export default function AthleteDashboard() {
         ))}
       </div>
 
+      {loadError && <div className="error-box">Non sono riuscito a caricare tutti i dati: {loadError}</div>}
+
       {tab === 'Panoramica' && (
         <>
           {selectedActivityId ? (
-            <ActivityDetail activityId={selectedActivityId} onClose={() => setSelectedActivityId(null)} />
+            <ActivityDetail
+              activityId={selectedActivityId}
+              onClose={() => setSelectedActivityId(null)}
+              canManage
+              onDeleted={() => { setSelectedActivityId(null); load() }}
+            />
           ) : (
             <>
               <div className="card">
@@ -85,7 +97,13 @@ export default function AthleteDashboard() {
       {tab === 'Scheda' && <TrainingPlanView athleteId={profile.id} />}
 
       {tab === 'Check-in' && (
-        <CheckinForm athleteId={profile.id} existing={todayCheckin} onSaved={load} />
+        <>
+          <CheckinForm athleteId={profile.id} existing={todayCheckin} onSaved={load} />
+          <div className="card">
+            <h3>Storico check-in</h3>
+            <CheckinHistory userId={profile.id} />
+          </div>
+        </>
       )}
 
       {tab === 'Profilo & backup' && (

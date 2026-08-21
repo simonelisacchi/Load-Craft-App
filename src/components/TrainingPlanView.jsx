@@ -14,31 +14,41 @@ export default function TrainingPlanView({ athleteId, readOnly = false }) {
   const [completions, setCompletions] = useState({})
   const [rpeInput, setRpeInput] = useState({})
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [showCompleted, setShowCompleted] = useState(false)
 
   async function load() {
     setLoading(true)
-    const { data: plans } = await supabase
+    setError(null)
+    const { data: plans, error: plansError } = await supabase
       .from('training_plans')
       .select('*')
       .eq('athlete_id', athleteId)
       .eq('active', true)
       .order('created_at', { ascending: false })
       .limit(1)
+    if (plansError) {
+      setError(plansError.message)
+      setLoading(false)
+      return
+    }
     const p = plans?.[0] || null
     setPlan(p)
     if (p) {
-      const [{ data: its }, { data: maps }, { data: comps }] = await Promise.all([
+      const [itsRes, mapsRes, compsRes] = await Promise.all([
         supabase.from('training_plan_items').select('*').eq('plan_id', p.id).order('week_number').order('day_number'),
         supabase.from('athlete_day_mapping').select('*').eq('plan_id', p.id),
         supabase.from('workout_completions').select('*').eq('athlete_id', athleteId),
       ])
-      setItems(its || [])
+      if (itsRes.error || mapsRes.error || compsRes.error) {
+        setError((itsRes.error || mapsRes.error || compsRes.error).message)
+      }
+      setItems(itsRes.data || [])
       const m = {}
-      for (const row of maps || []) m[row.day_number] = row.weekday
+      for (const row of mapsRes.data || []) m[row.day_number] = row.weekday
       setMapping(m)
       const c = {}
-      for (const row of comps || []) c[row.plan_item_id] = row
+      for (const row of compsRes.data || []) c[row.plan_item_id] = row
       setCompletions(c)
     }
     setLoading(false)
@@ -72,6 +82,7 @@ export default function TrainingPlanView({ athleteId, readOnly = false }) {
   }
 
   if (loading) return <p className="muted">Caricamento scheda…</p>
+  if (error) return <div className="error-box">{error}</div>
   if (!plan) return <p className="muted">{readOnly ? "Non hai ancora creato una scheda per questo atleta." : 'Il tuo coach non ha ancora creato una scheda per te.'}</p>
 
   const mappingComplete = dayNumbers.every((d) => mapping[d] != null)
