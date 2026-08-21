@@ -39,7 +39,7 @@ export default function AthleteDashboard() {
 
   if (!profile) return null
 
-  const priorityCount = notes.filter((n) => n.priority).length
+  const priorityCount = notes.filter((n) => n.urgency === 'urgente' || n.urgency === 'attenzione' || (n.urgency == null && n.priority)).length
 
   return (
     <div>

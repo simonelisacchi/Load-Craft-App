@@ -1,6 +1,6 @@
 {
-  "name": "Corse — Analisi Allenamento",
-  "short_name": "Corse",
+  "name": "Load Craft",
+  "short_name": "Load Craft",
   "description": "Carica le corse, segui VO2max e carico di allenamento, ricevi note e schede dal tuo coach.",
   "start_url": "./",
   "scope": "./",

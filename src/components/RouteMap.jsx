@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { MapContainer, TileLayer, Polyline, CircleMarker, LayersControl } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
+import { colorForIntensity } from '../lib/colorScale'
 
 // Mappa vera (OpenStreetMap gratuito, nessuna chiave richiesta; livello
 // satellite via Esri World Imagery, gratuito per uso non massivo) con il
@@ -24,10 +25,6 @@ function metricValue(p, metric) {
 // scala di colore: dal blu (basso sforzo) al rosso (alto sforzo).
 // Per il passo, un valore basso (min/km) = più veloce = "caldo", quindi
 // la normalizzazione va invertita rispetto a FC/velocità.
-function colorFor(norm) {
-  const hue = 210 - 210 * Math.min(1, Math.max(0, norm))
-  return `hsl(${hue}, 75%, 50%)`
-}
 
 function buildSegments(points, metric, maxSegments = 250) {
   const step = Math.max(1, Math.ceil(points.length / maxSegments))
@@ -49,7 +46,7 @@ function buildSegments(points, metric, maxSegments = 250) {
     if (invert) norm = 1 - norm
     segments.push({
       positions: [[sampled[i].lat, sampled[i].lon], [sampled[i + 1].lat, sampled[i + 1].lon]],
-      color: colorFor(norm),
+      color: colorForIntensity(norm),
     })
   }
   return segments

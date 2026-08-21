@@ -21,6 +21,8 @@
   --zone-risk-bg: #3a1015;   --zone-risk-fg: #ff5d6c;
   --zone-neutral-bg: #21262f; --zone-neutral-fg: #8b93a3;
 
+  --info-bg: #10233a; --info-fg: #5eb3ff;
+
   --reminder-grad-1: #123a30;
   --reminder-grad-2: #1a2029;
 
@@ -58,6 +60,8 @@
   --zone-warn-bg: #fbeed9;   --zone-warn-fg: #8a5a0c;
   --zone-risk-bg: #fbe4e6;   --zone-risk-fg: #b0293b;
   --zone-neutral-bg: #eaecf0; --zone-neutral-fg: #5b6472;
+
+  --info-bg: #e3f0fc; --info-fg: #1d6fb8;
 
   --reminder-grad-1: #e2f6f1;
   --reminder-grad-2: #ffffff;
@@ -202,6 +206,7 @@ button.secondary {
 }
 button.danger { background: var(--coral); color: var(--danger-ink); }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
+button.icon-btn { padding: 8px 11px; font-size: 1rem; line-height: 1; }
 
 input, select, textarea {
   font-family: var(--font-display);
@@ -223,7 +228,10 @@ label { font-size: 0.82rem; color: var(--muted); display: block; margin-bottom: 
   background: var(--surface-2);
   margin-bottom: 10px;
 }
-.note.priority { border-left-color: var(--coral); background: var(--note-priority-bg); }
+.note-urgente { border-left-color: var(--coral); background: var(--note-priority-bg); }
+.note-attenzione { border-left-color: var(--amber); background: var(--zone-warn-bg); }
+.note-info { border-left-color: var(--info-fg); background: var(--info-bg); }
+.note-normale { border-left-color: var(--slate); }
 .note .meta { font-size: 0.72rem; color: var(--muted); font-family: var(--font-mono); margin-top: 6px; }
 
 .zone-badge {
@@ -237,6 +245,7 @@ label { font-size: 0.82rem; color: var(--muted); display: block; margin-bottom: 
 .zone-attenzione { background: var(--zone-warn-bg); color: var(--zone-warn-fg); }
 .zone-rischio { background: var(--zone-risk-bg); color: var(--zone-risk-fg); }
 .zone-sotto-carico { background: var(--zone-neutral-bg); color: var(--zone-neutral-fg); }
+.zone-info { background: var(--info-bg); color: var(--info-fg); }
 
 .tabs { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
 .tabs button { background: transparent; color: var(--muted); border: 1px solid var(--border); }
@@ -273,3 +282,10 @@ td.mono, th.mono { font-family: var(--font-mono); }
 }
 .week-block { border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 12px; }
 .week-title { font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent); margin-bottom: 8px; }
+
+@media (max-width: 420px) {
+  .app-shell { padding: 14px 10px 60px; }
+  .card { padding: 14px; }
+  .stat { font-size: 1.3rem; }
+  .brand { font-size: 0.92rem; }
+}

@@ -107,7 +107,7 @@ export default function ActivityDetail({ activityId, onClose }) {
             Passa il dito o il mouse su un grafico: il punto corrispondente compare anche sugli altri grafici e sulla mappa.
           </p>
           {hrPoints.length > 1 && (
-            <LineChart points={hrPoints} label="Frequenza cardiaca" unit=" bpm" color="var(--coral)" hoverT={hoverT} onHover={setHoverT} />
+            <LineChart points={hrPoints} label="Frequenza cardiaca" unit=" bpm" color="var(--coral)" colorByValue hoverT={hoverT} onHover={setHoverT} />
           )}
           {pacePoints.length > 1 && (
             <LineChart points={pacePoints} label="Passo" unit="/km" color="var(--accent)" invert formatY={fmtMinKm} hoverT={hoverT} onHover={setHoverT} />

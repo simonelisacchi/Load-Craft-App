@@ -120,13 +120,14 @@ create table if not exists body_composition (
   created_at timestamptz not null default now()
 );
 
--- NOTE DEL COACH (col flag priorità)
+-- NOTE DEL COACH (con livello di urgenza)
 create table if not exists coach_notes (
   id uuid primary key default gen_random_uuid(),
   coach_id uuid not null references profiles(id),
   athlete_id uuid not null references profiles(id),
   body text not null,
-  priority boolean not null default false,
+  urgency text not null default 'normale' check (urgency in ('info','normale','attenzione','urgente')),
+  priority boolean not null default false, -- mantenuta per compatibilità, non più usata dall'interfaccia
   read_at timestamptz,
   created_at timestamptz not null default now()
 );

@@ -1,8 +1,9 @@
+import { useState } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './AuthContext'
 import { useTheme } from './ThemeContext'
 import { supabase } from './lib/supabaseClient'
-import ThemeToggle from './components/ThemeToggle'
+import SettingsPanel from './components/SettingsPanel'
 import ConfigErrorScreen from './components/ConfigErrorScreen'
 import ProfileMissingScreen from './components/ProfileMissingScreen'
 import Login from './pages/Login'
@@ -15,6 +16,7 @@ export default function App() {
   const { session, profile, loading, configError, refreshProfile, profileError } = useAuth()
   const { effective } = useTheme()
   const logoSrc = effective === 'dark' ? './icon-192.png' : './icon-light-192.png'
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   if (configError) return <ConfigErrorScreen message={configError} />
   if (loading) return <div className="app-shell center muted" style={{ paddingTop: 80 }}>Caricamento…</div>
@@ -24,18 +26,19 @@ export default function App() {
       <div className="topbar">
         <div className="brand">
           <img src={logoSrc} alt="" />
-          Corse — Analisi Allenamento
+          Load Craft
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <ThemeToggle />
+          {session && profile && <span className="role-pill">{profile.role}</span>}
           {session && (
-            <>
-              {profile && <span className="role-pill">{profile.role}</span>}
-              <button className="secondary" onClick={() => supabase.auth.signOut()}>Esci</button>
-            </>
+            <button className="secondary icon-btn" onClick={() => setSettingsOpen(true)} aria-label="Impostazioni" title="Impostazioni">
+              ⚙
+            </button>
           )}
         </div>
       </div>
+
+      {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
 
       {session && !profile ? (
         <ProfileMissingScreen onRetry={refreshProfile} onSignOut={() => supabase.auth.signOut()} error={profileError} />

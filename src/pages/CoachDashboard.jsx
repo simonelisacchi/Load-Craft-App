@@ -51,6 +51,7 @@ export default function CoachDashboard() {
   const [activities, setActivities] = useState([])
   const [notes, setNotes] = useState([])
   const [selectedActivityId, setSelectedActivityId] = useState(null)
+  const [newActivityIds, setNewActivityIds] = useState(new Set())
 
   const loadAthletes = useCallback(async () => {
     const { data } = await supabase.from('profiles').select('*').eq('coach_id', profile.id).order('full_name')
@@ -69,7 +70,22 @@ export default function CoachDashboard() {
     ])
     setActivities(acts || [])
     setNotes(ns || [])
-  }, [selected])
+
+    // Evidenzia le attività caricate dopo l'ultima volta che questo
+    // coach ha guardato questo atleta (segnalibro salvato sul
+    // dispositivo, per non dover aggiungere colonne al database).
+    const lsKey = `lastSeenActivities_${profile.id}_${selected}`
+    const lastSeen = localStorage.getItem(lsKey)
+    const created = (acts || []).map((a) => a.created_at).filter(Boolean)
+    if (lastSeen) {
+      setNewActivityIds(new Set((acts || []).filter((a) => a.created_at && a.created_at > lastSeen).map((a) => a.id)))
+    } else {
+      setNewActivityIds(new Set())
+    }
+    if (created.length) {
+      localStorage.setItem(lsKey, created.reduce((max, c) => (c > max ? c : max), created[0]))
+    }
+  }, [selected, profile])
 
   useEffect(() => { loadAthleteData() }, [loadAthleteData])
 
@@ -116,7 +132,7 @@ export default function CoachDashboard() {
                   <div className="card">
                     <h3>Storico corse</h3>
                     <p className="muted" style={{ fontSize: '0.8rem', marginTop: -6 }}>Tocca una corsa per vedere mappa, FC e passo nel dettaglio.</p>
-                    <ActivityList activities={activities} onSelect={setSelectedActivityId} />
+                    <ActivityList activities={activities} onSelect={setSelectedActivityId} highlightIds={newActivityIds} />
                   </div>
                 </>
               )}
