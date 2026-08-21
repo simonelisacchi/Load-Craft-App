@@ -8,7 +8,7 @@ const THEME_OPTIONS = [
   { id: 'system', label: 'Sistema' },
 ]
 
-const APP_VERSION = 'V-1.12'
+const APP_VERSION = 'V-1.17'
 
 export default function SettingsPanel({ onClose }) {
   const { pref, setTheme } = useTheme()
@@ -20,7 +20,7 @@ export default function SettingsPanel({ onClose }) {
       style={{
         position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
         display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-        padding: '60px 16px', zIndex: 50,
+        padding: '60px 16px', zIndex: 600,
       }}
     >
       <div

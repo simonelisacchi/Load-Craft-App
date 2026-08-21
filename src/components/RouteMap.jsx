@@ -98,7 +98,7 @@ export default function RouteMap({ record, hoverT }) {
         ))}
       </div>
 
-      <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)' }}>
+      <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)', isolation: 'isolate', position: 'relative' }}>
         <MapContainer bounds={bounds} boundsOptions={{ padding: [20, 20] }} style={{ height: 320, width: '100%' }} scrollWheelZoom={false}>
           <LayersControl position="topright">
             <LayersControl.BaseLayer checked name="Strade">

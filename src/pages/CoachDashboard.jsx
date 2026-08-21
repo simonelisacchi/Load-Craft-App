@@ -7,6 +7,7 @@ import BottomTabBar from '../components/BottomTabBar'
 import ActivityList from '../components/ActivityList'
 import ActivityDetail from '../components/ActivityDetail'
 import AcwrChart from '../components/AcwrChart'
+import RecoveryCard from '../components/RecoveryCard'
 import Vo2maxCard from '../components/Vo2maxCard'
 import NoteComposer from '../components/NoteComposer'
 import NotesPanel from '../components/NotesPanel'
@@ -126,6 +127,7 @@ export default function CoachDashboard() {
   const [athletesError, setAthletesError] = useState(null)
   const [dataError, setDataError] = useState(null)
   const [bodyCompKey, setBodyCompKey] = useState(0)
+  const [latestTqr, setLatestTqr] = useState(null)
 
   const loadAthletes = useCallback(async () => {
     setAthletesError(null)
@@ -143,9 +145,10 @@ export default function CoachDashboard() {
   const loadAthleteData = useCallback(async () => {
     if (!selected) return
     setDataError(null)
-    const [actsRes, notesRes] = await Promise.all([
+    const [actsRes, notesRes, tqrRes] = await Promise.all([
       supabase.from('activities').select('*').eq('user_id', selected).order('started_at', { ascending: false }),
       supabase.from('coach_notes').select('*').eq('athlete_id', selected).order('created_at', { ascending: false }),
+      supabase.from('daily_checkins').select('tqr').eq('user_id', selected).not('tqr', 'is', null).order('the_date', { ascending: false }).limit(1).maybeSingle(),
     ])
     if (actsRes.error || notesRes.error) {
       setDataError((actsRes.error || notesRes.error).message)
@@ -153,6 +156,7 @@ export default function CoachDashboard() {
     const acts = actsRes.data || []
     setActivities(acts)
     setNotes(notesRes.data || [])
+    setLatestTqr(tqrRes.data?.tqr ?? null)
 
     // Evidenzia le attività caricate dopo l'ultima volta che questo
     // coach ha guardato questo atleta (segnalibro salvato sul
@@ -197,6 +201,10 @@ export default function CoachDashboard() {
                 <ActivityDetail activityId={selectedActivityId} onClose={() => setSelectedActivityId(null)} />
               ) : (
                 <>
+                  <div className="card">
+                    <h3>Recupero — {athlete.full_name}</h3>
+                    <RecoveryCard activities={activities} latestTqr={latestTqr} />
+                  </div>
                   <div className="card">
                     <h3>VO2max — {athlete.full_name}</h3>
                     <Vo2maxCard activities={activities} />

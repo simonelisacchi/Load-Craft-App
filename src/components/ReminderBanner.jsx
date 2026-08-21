@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import { itemDate, isSameDay } from '../lib/planDates'
 
+// Mostra il prossimo allenamento non ancora completato, in ordine di
+// sequenza della scheda — non è vincolato a un giorno della settimana
+// fisso, così l'atleta resta libero di allenarsi quando può.
 export default function ReminderBanner({ athleteId }) {
-  const [todayItem, setTodayItem] = useState(null)
-  const [done, setDone] = useState(false)
+  const [nextItem, setNextItem] = useState(null)
 
   useEffect(() => {
     async function load() {
@@ -16,44 +17,36 @@ export default function ReminderBanner({ athleteId }) {
         .order('created_at', { ascending: false })
         .limit(1)
       if (plansError) {
-        // Promemoria secondario: se fallisce non blocchiamo la pagina con
-        // un errore, semplicemente non mostriamo il banner. Lo logghiamo
-        // comunque per poterlo diagnosticare.
         console.error('ReminderBanner:', plansError.message)
         return
       }
       const plan = plans?.[0]
       if (!plan) return
-      const [itemsRes, mapsRes, compsRes] = await Promise.all([
-        supabase.from('training_plan_items').select('*').eq('plan_id', plan.id),
-        supabase.from('athlete_day_mapping').select('*').eq('plan_id', plan.id),
+
+      const [itemsRes, compsRes] = await Promise.all([
+        supabase.from('training_plan_items').select('*').eq('plan_id', plan.id).order('week_number').order('day_number'),
         supabase.from('workout_completions').select('plan_item_id').eq('athlete_id', athleteId),
       ])
-      if (itemsRes.error || mapsRes.error || compsRes.error) {
-        console.error('ReminderBanner:', (itemsRes.error || mapsRes.error || compsRes.error).message)
+      if (itemsRes.error || compsRes.error) {
+        console.error('ReminderBanner:', (itemsRes.error || compsRes.error).message)
         return
       }
-      const mapping = {}
-      for (const m of mapsRes.data || []) mapping[m.day_number] = m.weekday
-      const today = new Date()
-      const match = (itemsRes.data || []).find((it) => isSameDay(itemDate(plan, mapping, it), today))
-      if (match) {
-        setTodayItem(match)
-        setDone((compsRes.data || []).some((c) => c.plan_item_id === match.id))
-      }
+      const doneIds = new Set((compsRes.data || []).map((c) => c.plan_item_id))
+      const next = (itemsRes.data || []).find((it) => !doneIds.has(it.id))
+      if (next) setNextItem(next)
     }
     load()
   }, [athleteId])
 
-  if (!todayItem) return null
+  if (!nextItem) return null
 
   return (
     <div className="reminder-banner">
       <div>
-        <div className="stat-label">Allenamento di oggi</div>
-        <div><strong>{todayItem.title}</strong> <span className="muted">· {todayItem.workout_type}</span></div>
+        <div className="stat-label">Prossimo allenamento</div>
+        <div><strong>{nextItem.title}</strong> <span className="muted">· {nextItem.workout_type} · Sett. {nextItem.week_number}, Giorno {nextItem.day_number}</span></div>
       </div>
-      {done ? <span className="zone-badge zone-sicura">fatto ✓</span> : <span className="zone-badge zone-attenzione">da fare</span>}
+      <span className="zone-badge zone-attenzione">da fare</span>
     </div>
   )
 }

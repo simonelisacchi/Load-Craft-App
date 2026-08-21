@@ -38,6 +38,7 @@ export default function ActivityDetail({ activityId, onClose, canManage = false,
   const [hoverT, setHoverT] = useState(null)
   const [busy, setBusy] = useState(false)
   const [actionMsg, setActionMsg] = useState(null)
+  const [vo2Reason, setVo2Reason] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -53,6 +54,34 @@ export default function ActivityDetail({ activityId, onClose, canManage = false,
     })
     return () => { cancelled = true }
   }, [activityId])
+
+  // Se manca la stima VO2max, capiamo e mostriamo il motivo esatto
+  // invece di lasciare un trattino senza spiegazione.
+  useEffect(() => {
+    if (!activity || activity.vo2max_estimate != null) {
+      setVo2Reason(null)
+      return
+    }
+    let cancelled = false
+    async function explain() {
+      if (activity.duration_s && activity.duration_s < 300) {
+        setVo2Reason('la corsa dura meno di 5 minuti: non basta per una stima affidabile.')
+        return
+      }
+      const { data: prof } = await supabase.from('profiles').select('hr_rest, hr_max, sex').eq('id', activity.user_id).single()
+      if (cancelled) return
+      if (!prof?.hr_rest || !prof?.hr_max) {
+        setVo2Reason('mancavano FC riposo/massima nel profilo al momento del caricamento. Completa il profilo e usa "Ricalcola".')
+        return
+      }
+      const record = activity.record_stream || []
+      const result = estimateVo2max(record, { hrRest: prof.hr_rest, hrMax: prof.hr_max, sex: prof.sex })
+      if (cancelled) return
+      setVo2Reason(result.note || 'dati insufficienti in questa corsa.')
+    }
+    explain()
+    return () => { cancelled = true }
+  }, [activity])
 
   async function handleDelete() {
     if (!confirm('Eliminare definitivamente questa corsa? Non si può annullare.')) return
@@ -158,6 +187,9 @@ export default function ActivityDetail({ activityId, onClose, canManage = false,
         <div>
           <div className="stat">{activity.vo2max_estimate ?? '—'}</div>
           <div className="stat-label">VO2max {activity.vo2max_confidence ? `(${activity.vo2max_confidence})` : ''}</div>
+          {activity.vo2max_estimate == null && vo2Reason && (
+            <div className="muted" style={{ fontSize: '0.7rem', marginTop: 4, maxWidth: 160 }}>{vo2Reason}</div>
+          )}
         </div>
         <div>
           <div className="stat">{activity.training_load ?? '—'}</div>

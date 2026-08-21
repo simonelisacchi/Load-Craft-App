@@ -1,23 +1,4 @@
-import { computeAcwrSeries } from '../lib/acwr'
-
-function toDailyLoads(activities) {
-  const byDate = {}
-  for (const a of activities) {
-    if (!a.started_at || a.training_load == null) continue
-    const d = a.started_at.slice(0, 10)
-    byDate[d] = (byDate[d] || 0) + a.training_load
-  }
-  const dates = Object.keys(byDate).sort()
-  if (!dates.length) return []
-  const start = new Date(dates[0])
-  const end = new Date(dates[dates.length - 1])
-  const out = []
-  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    const key = d.toISOString().slice(0, 10)
-    out.push({ date: key, load: byDate[key] || 0 })
-  }
-  return out
-}
+import { computeAcwrSeries, toDailyLoads } from '../lib/acwr'
 
 const ZONE_DOT = {
   'sicura': 'var(--zone-safe-fg)',

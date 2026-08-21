@@ -41,3 +41,26 @@ function classifyZone(acwr) {
   if (acwr <= 1.5) return 'attenzione'
   return 'rischio'
 }
+
+// Trasforma le attività in un carico giornaliero (0 nei giorni senza
+// corse), riempiendo i buchi tra la prima e l'ultima data — necessario
+// perché l'EWMA ha bisogno di una serie continua, non solo dei giorni
+// in cui si è corso.
+export function toDailyLoads(activities) {
+  const byDate = {}
+  for (const a of activities) {
+    if (!a.started_at || a.training_load == null) continue
+    const d = a.started_at.slice(0, 10)
+    byDate[d] = (byDate[d] || 0) + a.training_load
+  }
+  const dates = Object.keys(byDate).sort()
+  if (!dates.length) return []
+  const start = new Date(dates[0])
+  const end = new Date(dates[dates.length - 1])
+  const out = []
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const key = d.toISOString().slice(0, 10)
+    out.push({ date: key, load: byDate[key] || 0 })
+  }
+  return out
+}
