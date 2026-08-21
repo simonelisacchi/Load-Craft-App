@@ -55,8 +55,12 @@ function findStationarySegments(record, windowSec = 60) {
       const paces = window.map((p) => p.paceSecPerKm).filter(Boolean)
       const grades = window.map((p) => p.grade || 0)
       if (hrs.length > 5 && paces.length > 5) {
-        const hrStable = stdev(hrs) < 4 // bpm
-        const paceStable = stdev(paces) < 8 // sec/km
+        // Soglie tarate su dati GPS reali: il passo GPS-derivato oscilla
+        // naturalmente anche durante uno sforzo genuinamente costante.
+        // Con soglie troppo rigide (com'era prima: 8 sec/km) quasi
+        // nessuna corsa reale veniva mai riconosciuta come "stazionaria".
+        const hrStable = stdev(hrs) < 6 // bpm
+        const paceStable = stdev(paces) < 18 // sec/km
         const flat = Math.abs(mean(grades)) < 0.02
         if (hrStable && paceStable && flat) {
           segments.push({

@@ -1,7 +1,9 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useAuth } from '../AuthContext'
 import { supabase } from '../lib/supabaseClient'
+import { BarChart3, MessageSquare, Calendar, HeartPulse } from 'lucide-react'
 import InviteGenerator from '../components/InviteGenerator'
+import BottomTabBar from '../components/BottomTabBar'
 import ActivityList from '../components/ActivityList'
 import ActivityDetail from '../components/ActivityDetail'
 import AcwrChart from '../components/AcwrChart'
@@ -15,25 +17,92 @@ import BodyCompForm from '../components/BodyCompForm'
 import BodyCompHistory from '../components/BodyCompHistory'
 import CheckinHistory from '../components/CheckinHistory'
 
-const TABS = ['Dati & grafici', 'Note', 'Scheda', 'Salute']
+const TABS = [
+  { id: 'Dati & grafici', label: 'Dati', icon: BarChart3 },
+  { id: 'Note', label: 'Note', icon: MessageSquare },
+  { id: 'Scheda', label: 'Scheda', icon: Calendar },
+  { id: 'Salute', label: 'Salute', icon: HeartPulse },
+]
 
 function SchedaTab({ coachId, athlete, onChanged }) {
+  const [plans, setPlans] = useState([])
+  const [plansLoading, setPlansLoading] = useState(true)
+  const [plansError, setPlansError] = useState(null)
+  const [selectedPlanId, setSelectedPlanId] = useState(null)
   const [showNewPlan, setShowNewPlan] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
 
+  const loadPlans = useCallback(async () => {
+    setPlansLoading(true)
+    setPlansError(null)
+    const { data, error } = await supabase
+      .from('training_plans')
+      .select('*')
+      .eq('athlete_id', athlete.id)
+      .order('created_at', { ascending: false })
+    if (error) setPlansError(error.message)
+    setPlans(data || [])
+    setPlansLoading(false)
+  }, [athlete.id])
+
+  useEffect(() => { loadPlans() }, [loadPlans])
+
   function handleChanged() {
     setRefreshKey((k) => k + 1)
+    loadPlans()
     onChanged?.()
+  }
+
+  // Una scheda è aperta in modifica: nascondiamo il resto per non
+  // riempire la pagina, si torna indietro col pulsante nell'editor.
+  if (selectedPlanId) {
+    return (
+      <CoachPlanEditor
+        key={`edit-${selectedPlanId}-${refreshKey}`}
+        planId={selectedPlanId}
+        onBack={() => setSelectedPlanId(null)}
+        onChanged={handleChanged}
+      />
+    )
   }
 
   return (
     <>
       <TrainingPlanView key={`view-${refreshKey}`} athleteId={athlete.id} readOnly />
-      <CoachPlanEditor key={`edit-${refreshKey}`} athleteId={athlete.id} onChanged={handleChanged} />
 
-      {!showNewPlan && (
-        <button className="secondary" onClick={() => setShowNewPlan(true)}>+ crea una scheda completamente nuova</button>
-      )}
+      <div className="card">
+        <h3>Schede di {athlete.full_name}</h3>
+        {plansError && <div className="error-box">{plansError}</div>}
+        {plansLoading ? (
+          <p className="muted">Caricamento…</p>
+        ) : plans.length ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {plans.map((p) => (
+              <button
+                key={p.id}
+                className="secondary"
+                onClick={() => setSelectedPlanId(p.id)}
+                style={{ textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}
+              >
+                <span>
+                  {p.title}
+                  <span className="muted" style={{ fontSize: '0.76rem', display: 'block', marginTop: 2 }}>
+                    {p.weeks} settimane · dal {new Date(p.start_date).toLocaleDateString('it-IT')}
+                  </span>
+                </span>
+                {p.active && <span className="zone-badge zone-sicura" style={{ flexShrink: 0 }}>attiva</span>}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="muted">Nessuna scheda creata ancora.</p>
+        )}
+
+        {!showNewPlan && (
+          <button className="secondary" onClick={() => setShowNewPlan(true)} style={{ marginTop: 12 }}>+ crea una scheda nuova</button>
+        )}
+      </div>
+
       {showNewPlan && (
         <TrainingPlanBuilder
           coachId={coachId}
@@ -120,12 +189,6 @@ export default function CoachDashboard() {
 
       {athlete && (
         <>
-          <div className="tabs">
-            {TABS.map((t) => (
-              <button key={t} className={tab === t ? 'active' : ''} onClick={() => setTab(t)}>{t}</button>
-            ))}
-          </div>
-
           {dataError && <div className="error-box">Non sono riuscito a caricare tutti i dati: {dataError}</div>}
 
           {tab === 'Dati & grafici' && (
@@ -183,6 +246,8 @@ export default function CoachDashboard() {
               </div>
             </>
           )}
+
+          <BottomTabBar tabs={TABS} active={tab} onChange={setTab} />
         </>
       )}
     </div>

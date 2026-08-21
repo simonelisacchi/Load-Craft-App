@@ -1,7 +1,9 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useAuth } from '../AuthContext'
 import { supabase } from '../lib/supabaseClient'
+import { Home, Calendar, ClipboardCheck, UserCircle } from 'lucide-react'
 import ReminderBanner from '../components/ReminderBanner'
+import BottomTabBar from '../components/BottomTabBar'
 import NotesPanel from '../components/NotesPanel'
 import ActivityUpload from '../components/ActivityUpload'
 import ActivityList from '../components/ActivityList'
@@ -14,7 +16,12 @@ import CheckinHistory from '../components/CheckinHistory'
 import ProfileForm from '../components/ProfileForm'
 import SheetsSyncCard from '../components/SheetsSyncCard'
 
-const TABS = ['Panoramica', 'Scheda', 'Check-in', 'Profilo & backup']
+const TABS = [
+  { id: 'Panoramica', label: 'Panoramica', icon: Home },
+  { id: 'Scheda', label: 'Scheda', icon: Calendar },
+  { id: 'Check-in', label: 'Check-in', icon: ClipboardCheck },
+  { id: 'Profilo & backup', label: 'Profilo', icon: UserCircle },
+]
 
 export default function AthleteDashboard() {
   const { profile, refreshProfile } = useAuth()
@@ -49,14 +56,6 @@ export default function AthleteDashboard() {
   return (
     <div>
       <ReminderBanner athleteId={profile.id} />
-
-      <div className="tabs">
-        {TABS.map((t) => (
-          <button key={t} className={tab === t ? 'active' : ''} onClick={() => { setTab(t); setSelectedActivityId(null) }}>
-            {t}{t === 'Panoramica' && priorityCount > 0 ? ` (${priorityCount})` : ''}
-          </button>
-        ))}
-      </div>
 
       {loadError && <div className="error-box">Non sono riuscito a caricare tutti i dati: {loadError}</div>}
 
@@ -112,6 +111,12 @@ export default function AthleteDashboard() {
           <SheetsSyncCard athleteId={profile.id} />
         </>
       )}
+
+      <BottomTabBar
+        tabs={TABS.map((t) => ({ ...t, badge: t.id === 'Panoramica' ? priorityCount : 0 }))}
+        active={tab}
+        onChange={(id) => { setTab(id); setSelectedActivityId(null) }}
+      />
     </div>
   )
 }

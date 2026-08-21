@@ -3,91 +3,89 @@ import { supabase } from '../lib/supabaseClient'
 
 const WORKOUT_TYPES = ['corsa facile', 'lungo', 'ripetute', 'soglia', 'recupero', 'riposo', 'altro']
 
-export default function CoachPlanEditor({ athleteId, onChanged }) {
+// planId: la scheda specifica da modificare (non più "sempre quella
+// attiva" — il coach la sceglie da un elenco prima di arrivare qui).
+export default function CoachPlanEditor({ planId, onBack, onChanged }) {
   const [plan, setPlan] = useState(null)
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [savedId, setSavedId] = useState(null)
+  const [saveMsg, setSaveMsg] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [dirty, setDirty] = useState(false)
 
   // campi di testata modificabili
   const [title, setTitle] = useState('')
   const [weeks, setWeeks] = useState(1)
   const [startDate, setStartDate] = useState('')
-  const [headerBusy, setHeaderBusy] = useState(false)
-  const [headerSaved, setHeaderSaved] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
-    const { data: plans, error: plansError } = await supabase
+    const { data: p, error: planError } = await supabase
       .from('training_plans')
       .select('*')
-      .eq('athlete_id', athleteId)
-      .eq('active', true)
-      .order('created_at', { ascending: false })
-      .limit(1)
-    if (plansError) {
-      setError(plansError.message)
+      .eq('id', planId)
+      .single()
+    if (planError) {
+      setError(planError.message)
       setLoading(false)
       return
     }
-    const p = plans?.[0] || null
     setPlan(p)
-    if (p) {
-      setTitle(p.title)
-      setWeeks(p.weeks)
-      setStartDate(p.start_date)
-      const { data: its, error: itsError } = await supabase
-        .from('training_plan_items')
-        .select('*')
-        .eq('plan_id', p.id)
-        .order('week_number')
-        .order('day_number')
-      if (itsError) setError(itsError.message)
-      setItems(its || [])
-    } else {
-      setItems([])
-    }
+    setTitle(p.title)
+    setWeeks(p.weeks)
+    setStartDate(p.start_date)
+    const { data: its, error: itsError } = await supabase
+      .from('training_plan_items')
+      .select('*')
+      .eq('plan_id', p.id)
+      .order('week_number')
+      .order('day_number')
+    if (itsError) setError(itsError.message)
+    setItems(its || [])
+    setDirty(false)
     setLoading(false)
-  }, [athleteId])
+  }, [planId])
 
   useEffect(() => { load() }, [load])
 
-  async function saveHeader() {
-    setHeaderBusy(true)
+  function updateLocal(id, field, value) {
+    setItems((prev) => prev.map((it) => (it.id === id ? { ...it, [field]: value } : it)))
+    setDirty(true)
+  }
+
+  // Un solo pulsante "Salva" per tutto: intestazione della scheda +
+  // titolo/tipo/note di ogni allenamento, in un'unica operazione.
+  async function saveAll() {
+    setSaving(true)
     setError(null)
-    const { error } = await supabase
+    setSaveMsg(null)
+
+    const { error: headerError } = await supabase
       .from('training_plans')
       .update({ title: title.trim(), weeks: Number(weeks), start_date: startDate })
       .eq('id', plan.id)
-    setHeaderBusy(false)
-    if (error) {
-      setError(error.message)
+
+    const itemUpdates = await Promise.all(
+      items.map((item) =>
+        supabase
+          .from('training_plan_items')
+          .update({ title: item.title.trim(), workout_type: item.workout_type, description: item.description || null })
+          .eq('id', item.id)
+      )
+    )
+    const itemError = itemUpdates.find((r) => r.error)?.error
+
+    setSaving(false)
+    if (headerError || itemError) {
+      setError((headerError || itemError).message)
       return
     }
-    setHeaderSaved(true)
-    setTimeout(() => setHeaderSaved(false), 2000)
+    setDirty(false)
+    setSaveMsg('Tutte le modifiche sono state salvate.')
+    setTimeout(() => setSaveMsg(null), 3000)
     load()
-    onChanged?.()
-  }
-
-  function updateLocal(id, field, value) {
-    setItems((prev) => prev.map((it) => (it.id === id ? { ...it, [field]: value } : it)))
-  }
-
-  async function saveItem(item) {
-    setError(null)
-    const { error } = await supabase
-      .from('training_plan_items')
-      .update({ title: item.title.trim(), workout_type: item.workout_type, description: item.description || null })
-      .eq('id', item.id)
-    if (error) {
-      setError(error.message)
-      return
-    }
-    setSavedId(item.id)
-    setTimeout(() => setSavedId(null), 1500)
     onChanged?.()
   }
 
@@ -121,35 +119,37 @@ export default function CoachPlanEditor({ athleteId, onChanged }) {
   }
 
   if (loading) return <p className="muted">Caricamento scheda…</p>
-  if (!plan) return null // nessuna scheda attiva: nulla da modificare, si userà il costruttore qui sotto
+  if (!plan) return null
 
   return (
     <div className="card">
-      <h3>Modifica scheda attuale</h3>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+        <button className="secondary" onClick={onBack} style={{ padding: '5px 10px', fontSize: '0.8rem' }}>← Elenco schede</button>
+        {plan.active && <span className="zone-badge zone-sicura">attiva</span>}
+      </div>
+
+      <h3 style={{ marginBottom: 4 }}>Modifica scheda</h3>
       {error && <div className="error-box">{error}</div>}
-      {headerSaved && <div className="success-box">Dati scheda aggiornati.</div>}
+      {saveMsg && <div className="success-box">{saveMsg}</div>}
 
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <div className="field" style={{ flex: 2, minWidth: 180 }}>
           <label>Titolo</label>
-          <input value={title} onChange={(e) => setTitle(e.target.value)} />
+          <input value={title} onChange={(e) => { setTitle(e.target.value); setDirty(true) }} />
         </div>
         <div className="field" style={{ flex: 1, minWidth: 90 }}>
           <label>Settimane</label>
-          <input type="number" min={1} max={30} value={weeks} onChange={(e) => setWeeks(e.target.value)} />
+          <input type="number" min={1} max={30} value={weeks} onChange={(e) => { setWeeks(e.target.value); setDirty(true) }} />
         </div>
         <div className="field" style={{ flex: 1, minWidth: 140 }}>
           <label>Inizio Settimana 1</label>
-          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-        </div>
-        <div className="field" style={{ flex: '0 0 auto' }}>
-          <button onClick={saveHeader} disabled={headerBusy}>Aggiorna</button>
+          <input type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); setDirty(true) }} />
         </div>
       </div>
       <p className="muted" style={{ fontSize: '0.78rem' }}>
         Se allunghi le settimane, aggiungi qui sotto gli allenamenti per le
-        nuove settimane con "+ aggiungi allenamento". Se cambi l'inizio della
-        Settimana 1, le date che vede l'atleta si aggiornano subito.
+        nuove settimane con "+ aggiungi allenamento" (si aggiunge subito).
+        Le altre modifiche si salvano tutte insieme col pulsante in fondo.
       </p>
 
       {Array.from({ length: weeks }, (_, i) => i + 1).map((wk) => (
@@ -173,7 +173,6 @@ export default function CoachPlanEditor({ athleteId, onChanged }) {
                   value={item.description || ''}
                   onChange={(e) => updateLocal(item.id, 'description', e.target.value)}
                 />
-                <button className="secondary" onClick={() => saveItem(item)}>{savedId === item.id ? 'Salvato ✓' : 'Salva'}</button>
                 <button className="danger" onClick={() => deleteItem(item)}>Elimina</button>
               </div>
             </div>
@@ -181,6 +180,12 @@ export default function CoachPlanEditor({ athleteId, onChanged }) {
           <button className="secondary" onClick={() => addItem(wk)}>+ aggiungi allenamento</button>
         </div>
       ))}
+
+      <div style={{ position: 'sticky', bottom: 84, marginTop: 20, display: 'flex', justifyContent: 'flex-end' }}>
+        <button onClick={saveAll} disabled={saving || !dirty} style={{ padding: '12px 28px', fontSize: '0.95rem' }}>
+          {saving ? 'Salvataggio…' : dirty ? 'Salva tutte le modifiche' : 'Nessuna modifica da salvare'}
+        </button>
+      </div>
     </div>
   )
 }
