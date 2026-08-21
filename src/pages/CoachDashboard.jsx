@@ -5,6 +5,7 @@ import InviteGenerator from '../components/InviteGenerator'
 import ActivityList from '../components/ActivityList'
 import ActivityDetail from '../components/ActivityDetail'
 import AcwrChart from '../components/AcwrChart'
+import Vo2maxCard from '../components/Vo2maxCard'
 import NoteComposer from '../components/NoteComposer'
 import NotesPanel from '../components/NotesPanel'
 import TrainingPlanBuilder from '../components/TrainingPlanBuilder'
@@ -25,7 +26,7 @@ function SchedaTab({ coachId, athlete, onChanged }) {
 
   return (
     <>
-      <TrainingPlanView key={`view-${refreshKey}`} athleteId={athlete.id} />
+      <TrainingPlanView key={`view-${refreshKey}`} athleteId={athlete.id} readOnly />
       <CoachPlanEditor key={`edit-${refreshKey}`} athleteId={athlete.id} onChanged={handleChanged} />
 
       {!showNewPlan && (
@@ -105,6 +106,10 @@ export default function CoachDashboard() {
               ) : (
                 <>
                   <div className="card">
+                    <h3>VO2max — {athlete.full_name}</h3>
+                    <Vo2maxCard activities={activities} />
+                  </div>
+                  <div className="card">
                     <h3>ACWR — {athlete.full_name}</h3>
                     <AcwrChart activities={activities} />
                   </div>
@@ -126,7 +131,7 @@ export default function CoachDashboard() {
               </div>
               <div className="card">
                 <h3>Note inviate</h3>
-                <NotesPanel notes={notes} />
+                <NotesPanel notes={notes} editableByCoachId={profile.id} onChanged={loadAthleteData} />
               </div>
             </>
           )}

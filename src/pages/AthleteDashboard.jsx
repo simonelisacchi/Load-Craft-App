@@ -7,6 +7,7 @@ import ActivityUpload from '../components/ActivityUpload'
 import ActivityList from '../components/ActivityList'
 import ActivityDetail from '../components/ActivityDetail'
 import AcwrChart from '../components/AcwrChart'
+import Vo2maxCard from '../components/Vo2maxCard'
 import TrainingPlanView from '../components/TrainingPlanView'
 import CheckinForm from '../components/CheckinForm'
 import ProfileForm from '../components/ProfileForm'
@@ -61,6 +62,10 @@ export default function AthleteDashboard() {
               <div className="card">
                 <h3>Note del coach</h3>
                 <NotesPanel notes={notes} />
+              </div>
+              <div className="card">
+                <h3>VO2max</h3>
+                <Vo2maxCard activities={activities} />
               </div>
               <div className="card">
                 <h3>ACWR — carico acuto/cronico</h3>

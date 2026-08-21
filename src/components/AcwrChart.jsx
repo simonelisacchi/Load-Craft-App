@@ -19,6 +19,13 @@ function toDailyLoads(activities) {
   return out
 }
 
+const ZONE_DOT = {
+  'sicura': 'var(--zone-safe-fg)',
+  'attenzione': 'var(--zone-warn-fg)',
+  'rischio': 'var(--zone-risk-fg)',
+  'sotto-carico': 'var(--zone-neutral-fg)',
+}
+
 export default function AcwrChart({ activities }) {
   const daily = toDailyLoads(activities)
   if (daily.length < 3) {
@@ -57,6 +64,12 @@ export default function AcwrChart({ activities }) {
         <rect x={pad} y={bandY(1.3)} width={w - pad * 2} height={bandY(0.8) - bandY(1.3)} fill="var(--chart-tint-safe)" />
         <rect x={pad} y={bandY(0.8)} width={w - pad * 2} height={h - pad - bandY(0.8)} fill="var(--chart-tint-neutral)" />
         <polyline points={points} fill="none" stroke="var(--chart-line)" strokeWidth="2" />
+        {series.map((s, i) => {
+          if (s.acwr == null || !s.load) return null // pallino solo nei giorni con almeno una corsa
+          const x = pad + (i / (series.length - 1)) * (w - pad * 2)
+          const y = bandY(s.acwr)
+          return <circle key={i} cx={x} cy={y} r="3.5" fill={ZONE_DOT[s.zone] || 'var(--chart-line)'} stroke="var(--surface)" strokeWidth="1" />
+        })}
       </svg>
       <div className="muted" style={{ fontSize: '0.72rem', display: 'flex', gap: 14, flexWrap: 'wrap' }}>
         <span><span style={{ color: 'var(--zone-neutral-fg)' }}>■</span> sotto-carico &lt;0.8</span>

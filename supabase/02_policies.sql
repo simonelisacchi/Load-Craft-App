@@ -90,6 +90,8 @@ create policy "notes_insert" on coach_notes for insert
   with check (coach_id = auth.uid() and is_coach_of(athlete_id));
 create policy "notes_update" on coach_notes for update
   using (athlete_id = auth.uid() or coach_id = auth.uid());
+create policy "notes_delete" on coach_notes for delete
+  using (coach_id = auth.uid());
 
 -- SCHEDE DI ALLENAMENTO: le crea/modifica solo il coach; le legge anche l'atleta.
 create policy "plans_select" on training_plans for select
