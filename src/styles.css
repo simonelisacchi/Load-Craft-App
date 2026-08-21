@@ -283,6 +283,22 @@ td.mono, th.mono { font-family: var(--font-mono); }
 .week-block { border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 12px; }
 .week-title { font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent); margin-bottom: 8px; }
 
+/* Controlli Leaflet, ridisegnati per stare al tema dell'app invece del
+   grigio di default */
+.leaflet-control-zoom a {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+}
+.leaflet-control-zoom a:hover { background: var(--surface-2) !important; }
+.leaflet-control-attribution {
+  background: rgba(16,20,26,0.55) !important;
+  color: #cfd4dc !important;
+  font-size: 9px !important;
+  backdrop-filter: blur(2px);
+}
+.leaflet-control-attribution a { color: #eef1f6 !important; }
+
 .bottom-tabbar {
   position: fixed;
   left: 0;

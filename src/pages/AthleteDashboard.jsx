@@ -59,7 +59,7 @@ export default function AthleteDashboard() {
 
   return (
     <div>
-      <ReminderBanner athleteId={profile.id} />
+      <ReminderBanner athleteId={profile.id} onOpenSchedule={() => { setTab('Scheda'); setSelectedActivityId(null) }} />
 
       {loadError && <div className="error-box">Non sono riuscito a caricare tutti i dati: {loadError}</div>}
 

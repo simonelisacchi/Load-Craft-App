@@ -1,13 +1,17 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { colorForIntensity } from '../lib/colorScale'
+import ExpandedChartModal from './ExpandedChartModal'
 
 // Grafico a linea interattivo e più dettagliato: griglia con valori
 // sugli assi, area colorata sotto la curva, e — quando richiesto
 // (colorByValue) — linea colorata punto per punto in base all'intensità
 // (blu=basso, rosso=alto), stessa scala usata nella mappa del percorso.
+// Cliccando l'icona di espansione si apre una vista a schermo intero
+// con più spazio, tooltip dettagliato e zoom.
 
 export default function LineChart({ points, label, unit, color = 'var(--chart-line)', invert = false, formatY, hoverT, onHover, colorByValue = false }) {
   const svgRef = useRef(null)
+  const [expanded, setExpanded] = useState(false)
   const valid = (points || []).filter((p) => Number.isFinite(p.y))
   if (valid.length < 2) return null
 
@@ -74,7 +78,17 @@ export default function LineChart({ points, label, unit, color = 'var(--chart-li
   return (
     <div style={{ marginBottom: 16 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', marginBottom: 4 }}>
-        <span className="muted">{label}</span>
+        <span className="muted" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {label}
+          <button
+            onClick={() => setExpanded(true)}
+            className="secondary"
+            style={{ padding: '1px 7px', fontSize: '0.68rem', lineHeight: 1.4 }}
+            title="Apri a schermo intero"
+          >
+            ⤢
+          </button>
+        </span>
         <span className="mono" style={{ color: hovered ? color : 'var(--muted)', fontWeight: hovered ? 700 : 400 }}>
           {hovered ? `${fmt(hovered.y)}${unit}` : `min ${fmt(minY)}${unit} · max ${fmt(maxY)}${unit}`}
         </span>
@@ -125,6 +139,20 @@ export default function LineChart({ points, label, unit, color = 'var(--chart-li
           </>
         )}
       </svg>
+
+      {expanded && (
+        <ExpandedChartModal
+          points={points}
+          label={label}
+          unit={unit}
+          color={color}
+          invert={invert}
+          formatY={formatY}
+          colorByValue={colorByValue}
+          colorForIntensity={colorForIntensity}
+          onClose={() => setExpanded(false)}
+        />
+      )}
     </div>
   )
 }

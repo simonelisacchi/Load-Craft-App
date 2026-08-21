@@ -18,6 +18,7 @@ export default function TrainingPlanView({ athleteId, readOnly = false }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [showCompleted, setShowCompleted] = useState(false)
+  const [showAllUpcoming, setShowAllUpcoming] = useState(false)
 
   async function load() {
     setLoading(true)
@@ -128,9 +129,27 @@ export default function TrainingPlanView({ athleteId, readOnly = false }) {
       </p>
 
       <div className="week-title" style={{ marginTop: 10 }}>ALLENAMENTI</div>
-      {upcoming.length
-        ? upcoming.map((x, i) => renderItem(x, i === 0))
-        : <p className="muted" style={{ fontSize: '0.85rem' }}>Nessun allenamento da fare — tutti completati.</p>}
+      {upcoming.length ? (
+        <>
+          {renderItem(upcoming[0], true)}
+          {upcoming.length > 1 && (
+            <>
+              {!showAllUpcoming ? (
+                <button className="secondary" onClick={() => setShowAllUpcoming(true)}>
+                  Vedi tutti gli allenamenti ({upcoming.length - 1} altri)
+                </button>
+              ) : (
+                <>
+                  {upcoming.slice(1).map((x) => renderItem(x, false))}
+                  <button className="secondary" onClick={() => setShowAllUpcoming(false)}>Mostra solo il prossimo</button>
+                </>
+              )}
+            </>
+          )}
+        </>
+      ) : (
+        <p className="muted" style={{ fontSize: '0.85rem' }}>Nessun allenamento da fare — tutti completati.</p>
+      )}
 
       {done.length > 0 && (
         <div style={{ marginTop: 20 }}>

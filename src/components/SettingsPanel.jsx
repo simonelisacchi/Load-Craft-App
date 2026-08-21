@@ -8,7 +8,7 @@ const THEME_OPTIONS = [
   { id: 'system', label: 'Sistema' },
 ]
 
-const APP_VERSION = 'V-1.17'
+const APP_VERSION = 'V-1.19'
 
 export default function SettingsPanel({ onClose }) {
   const { pref, setTheme } = useTheme()
@@ -63,7 +63,7 @@ export default function SettingsPanel({ onClose }) {
         <button
           className="danger"
           style={{ width: '100%', marginTop: 20 }}
-          onClick={() => supabase.auth.signOut()}
+          onClick={() => { onClose(); supabase.auth.signOut() }}
         >
           Esci
         </button>

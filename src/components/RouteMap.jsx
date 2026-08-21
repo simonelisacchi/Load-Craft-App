@@ -1,12 +1,17 @@
 import { useMemo, useState } from 'react'
-import { MapContainer, TileLayer, Polyline, CircleMarker, LayersControl } from 'react-leaflet'
+import { MapContainer, TileLayer, Polyline, CircleMarker, ZoomControl } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import { colorForIntensity } from '../lib/colorScale'
 
-// Mappa vera (OpenStreetMap gratuito, nessuna chiave richiesta; livello
-// satellite via Esri World Imagery, gratuito per uso non massivo) con il
-// percorso colorabile in base a FC / passo / velocità — un "layer" alla
-// volta, come richiesto. Nessun servizio a pagamento coinvolto.
+function ZoomControlBottomRight() {
+  return <ZoomControl position="bottomright" />
+}
+
+// Mappa vera (OpenStreetMap gratuito per le strade, Esri World Imagery
+// gratuito per il satellite — nessuna chiave richiesta) col percorso
+// colorabile in base a FC / passo / velocità. Controlli propri (non
+// quelli di default di Leaflet) per restare coerenti con lo stile
+// dell'app; satellite come vista predefinita.
 
 const METRIC_OPTIONS = [
   { id: 'none', label: 'Nessuno' },
@@ -15,6 +20,19 @@ const METRIC_OPTIONS = [
   { id: 'speed', label: 'Velocità' },
 ]
 
+const BASE_LAYERS = {
+  satellite: {
+    label: 'Satellite',
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Tiles &copy; Esri',
+  },
+  strade: {
+    label: 'Strade',
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  },
+}
+
 function metricValue(p, metric) {
   if (metric === 'hr') return Number.isFinite(p.hr) ? p.hr : null
   if (metric === 'pace') return Number.isFinite(p.paceSecPerKm) && p.paceSecPerKm > 0 ? p.paceSecPerKm : null
@@ -22,18 +40,14 @@ function metricValue(p, metric) {
   return null
 }
 
-// scala di colore: dal blu (basso sforzo) al rosso (alto sforzo).
-// Per il passo, un valore basso (min/km) = più veloce = "caldo", quindi
-// la normalizzazione va invertita rispetto a FC/velocità.
-
 function buildSegments(points, metric, maxSegments = 250) {
   const step = Math.max(1, Math.ceil(points.length / maxSegments))
   const sampled = points.filter((_, i) => i % step === 0)
   if (metric === 'none') {
-    return [{ positions: sampled.map((p) => [p.lat, p.lon]), color: 'var(--accent)' }]
+    return [{ positions: sampled.map((p) => [p.lat, p.lon]), color: '#3fe0c0' }]
   }
   const values = sampled.map((p) => metricValue(p, metric)).filter((v) => v != null)
-  if (!values.length) return [{ positions: sampled.map((p) => [p.lat, p.lon]), color: 'var(--accent)' }]
+  if (!values.length) return [{ positions: sampled.map((p) => [p.lat, p.lon]), color: '#3fe0c0' }]
   const min = Math.min(...values), max = Math.max(...values)
   const span = max - min || 1
   const invert = metric === 'pace'
@@ -54,6 +68,7 @@ function buildSegments(points, metric, maxSegments = 250) {
 
 export default function RouteMap({ record, hoverT }) {
   const [metric, setMetric] = useState('none')
+  const [baseLayer, setBaseLayer] = useState('satellite')
   const points = useMemo(() => (record || []).filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lon)), [record])
 
   const segments = useMemo(() => buildSegments(points, metric), [points, metric])
@@ -81,48 +96,61 @@ export default function RouteMap({ record, hoverT }) {
   ]
 
   const hasMetricData = (m) => points.some((p) => metricValue(p, m) != null)
+  const layer = BASE_LAYERS[baseLayer]
 
   return (
     <div>
-      <div className="tabs" style={{ marginBottom: 8 }}>
-        {METRIC_OPTIONS.map((m) => (
-          <button
-            key={m.id}
-            className={metric === m.id ? 'active' : ''}
-            disabled={m.id !== 'none' && !hasMetricData(m.id)}
-            onClick={() => setMetric(m.id)}
-            style={{ padding: '5px 12px', fontSize: '0.8rem' }}
-          >
-            {m.label}
-          </button>
-        ))}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+        <div className="tabs" style={{ margin: 0 }}>
+          {METRIC_OPTIONS.map((m) => (
+            <button
+              key={m.id}
+              className={metric === m.id ? 'active' : ''}
+              disabled={m.id !== 'none' && !hasMetricData(m.id)}
+              onClick={() => setMetric(m.id)}
+              style={{ padding: '5px 12px', fontSize: '0.8rem' }}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+        <div className="theme-toggle">
+          {Object.entries(BASE_LAYERS).map(([id, l]) => (
+            <button key={id} className={baseLayer === id ? 'active' : ''} onClick={() => setBaseLayer(id)} style={{ fontSize: '0.75rem', padding: '6px 11px' }}>
+              {l.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)', isolation: 'isolate', position: 'relative' }}>
-        <MapContainer bounds={bounds} boundsOptions={{ padding: [20, 20] }} style={{ height: 320, width: '100%' }} scrollWheelZoom={false}>
-          <LayersControl position="topright">
-            <LayersControl.BaseLayer checked name="Strade">
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-            </LayersControl.BaseLayer>
-            <LayersControl.BaseLayer name="Satellite">
-              <TileLayer
-                attribution="Tiles &copy; Esri"
-                url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-              />
-            </LayersControl.BaseLayer>
-          </LayersControl>
+      <div className="route-map-frame" style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)', isolation: 'isolate', position: 'relative' }}>
+        <MapContainer
+          bounds={bounds}
+          boundsOptions={{ padding: [24, 24] }}
+          style={{ height: 340, width: '100%' }}
+          scrollWheelZoom={false}
+          zoomControl={false}
+        >
+          <ZoomControlBottomRight />
+          <TileLayer key={baseLayer} attribution={layer.attribution} url={layer.url} />
 
+          {/* traccia con un leggero "glow" sotto la linea principale, per un effetto più curato */}
           {segments.map((seg, i) => (
-            <Polyline key={i} positions={seg.positions} pathOptions={{ color: seg.color, weight: 4, opacity: 0.9 }} />
+            <Polyline key={`glow-${i}`} positions={seg.positions} pathOptions={{ color: seg.color, weight: 8, opacity: 0.25 }} />
+          ))}
+          {segments.map((seg, i) => (
+            <Polyline key={i} positions={seg.positions} pathOptions={{ color: seg.color, weight: 3.5, opacity: 0.95 }} />
           ))}
 
-          <CircleMarker center={[points[0].lat, points[0].lon]} radius={6} pathOptions={{ color: '#0f7a68', fillColor: '#3fe0c0', fillOpacity: 1 }} />
-          <CircleMarker center={[points[points.length - 1].lat, points[points.length - 1].lon]} radius={6} pathOptions={{ color: '#8a1522', fillColor: '#ff5d6c', fillOpacity: 1 }} />
+          {/* marker partenza/arrivo: anello esterno + punto pieno, minimali */}
+          <CircleMarker center={[points[0].lat, points[0].lon]} radius={9} pathOptions={{ color: '#ffffff', weight: 2, fillColor: '#3fe0c0', fillOpacity: 0.25 }} />
+          <CircleMarker center={[points[0].lat, points[0].lon]} radius={4} pathOptions={{ color: 'transparent', fillColor: '#3fe0c0', fillOpacity: 1 }} />
+
+          <CircleMarker center={[points[points.length - 1].lat, points[points.length - 1].lon]} radius={9} pathOptions={{ color: '#ffffff', weight: 2, fillColor: '#ff5d6c', fillOpacity: 0.25 }} />
+          <CircleMarker center={[points[points.length - 1].lat, points[points.length - 1].lon]} radius={4} pathOptions={{ color: 'transparent', fillColor: '#ff5d6c', fillOpacity: 1 }} />
+
           {hoverPoint && (
-            <CircleMarker center={[hoverPoint.lat, hoverPoint.lon]} radius={7} pathOptions={{ color: '#151a22', fillColor: '#ffffff', fillOpacity: 1, weight: 2 }} />
+            <CircleMarker center={[hoverPoint.lat, hoverPoint.lon]} radius={6} pathOptions={{ color: '#151a22', fillColor: '#ffffff', fillOpacity: 1, weight: 2 }} />
           )}
         </MapContainer>
       </div>

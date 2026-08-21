@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
+import { Settings } from 'lucide-react'
 import { useAuth } from './AuthContext'
 import { useTheme } from './ThemeContext'
 import { supabase } from './lib/supabaseClient'
@@ -18,6 +19,13 @@ export default function App() {
   const logoSrc = effective === 'dark' ? './icon-192.png' : './icon-light-192.png'
   const [settingsOpen, setSettingsOpen] = useState(false)
 
+  // Se la sessione termina (logout, da qui o da dentro il pannello
+  // impostazioni), il pannello si chiude sempre da solo — non deve mai
+  // restare aperto sopra la schermata di login.
+  useEffect(() => {
+    if (!session) setSettingsOpen(false)
+  }, [session])
+
   if (configError) return <ConfigErrorScreen message={configError} />
   if (loading) return <div className="app-shell center muted" style={{ paddingTop: 80 }}>Caricamento…</div>
 
@@ -32,13 +40,13 @@ export default function App() {
           {session && profile && <span className="role-pill">{profile.role}</span>}
           {session && (
             <button className="secondary icon-btn" onClick={() => setSettingsOpen(true)} aria-label="Impostazioni" title="Impostazioni">
-              ⚙
+              <Settings size={17} strokeWidth={1.8} />
             </button>
           )}
         </div>
       </div>
 
-      {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
+      {settingsOpen && session && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
 
       {session && !profile ? (
         <ProfileMissingScreen onRetry={refreshProfile} onSignOut={() => supabase.auth.signOut()} error={profileError} />

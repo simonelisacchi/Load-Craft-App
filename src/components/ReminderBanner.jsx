@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabaseClient'
 // Mostra il prossimo allenamento non ancora completato, in ordine di
 // sequenza della scheda — non è vincolato a un giorno della settimana
 // fisso, così l'atleta resta libero di allenarsi quando può.
-export default function ReminderBanner({ athleteId }) {
+export default function ReminderBanner({ athleteId, onOpenSchedule }) {
   const [nextItem, setNextItem] = useState(null)
 
   useEffect(() => {
@@ -41,12 +41,19 @@ export default function ReminderBanner({ athleteId }) {
   if (!nextItem) return null
 
   return (
-    <div className="reminder-banner">
+    <button
+      className="reminder-banner"
+      onClick={onOpenSchedule}
+      style={{
+        width: '100%', border: '1px solid var(--accent)', cursor: onOpenSchedule ? 'pointer' : 'default',
+        textAlign: 'left', color: 'var(--text)', fontFamily: 'var(--font-display)', fontWeight: 400,
+      }}
+    >
       <div>
         <div className="stat-label">Prossimo allenamento</div>
         <div><strong>{nextItem.title}</strong> <span className="muted">· {nextItem.workout_type} · Sett. {nextItem.week_number}, Giorno {nextItem.day_number}</span></div>
       </div>
-      <span className="zone-badge zone-attenzione">da fare</span>
-    </div>
+      <span className="zone-badge zone-attenzione">apri scheda →</span>
+    </button>
   )
 }

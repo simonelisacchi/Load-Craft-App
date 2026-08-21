@@ -134,7 +134,7 @@ function parseFitInner(arrayBuffer) {
       }
 
       const isDefinition = (headerByte & 0x40) !== 0
-      const localType = headerByte & 0x0f
+      const localType = headerByte & 0x1f // 5 bit (bit 4-0), non 4: errore corretto
 
       if (isDefinition) {
         const devFlag = (headerByte & 0x20) !== 0

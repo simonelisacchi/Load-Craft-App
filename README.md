@@ -1,4 +1,4 @@
-# Load Craft — Guida (versione V-1.17)
+# Load Craft — Guida (versione V-1.19)
 
 Questa guida presume che tu non abbia mai usato strumenti di sviluppo.
 Segui i passaggi in ordine, uno alla volta. Ogni passaggio va fatto **una

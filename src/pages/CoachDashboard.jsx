@@ -3,6 +3,7 @@ import { useAuth } from '../AuthContext'
 import { supabase } from '../lib/supabaseClient'
 import { BarChart3, MessageSquare, Calendar, HeartPulse } from 'lucide-react'
 import InviteGenerator from '../components/InviteGenerator'
+import AthleteList from '../components/AthleteList'
 import BottomTabBar from '../components/BottomTabBar'
 import ActivityList from '../components/ActivityList'
 import ActivityDetail from '../components/ActivityDetail'
@@ -128,6 +129,7 @@ export default function CoachDashboard() {
   const [dataError, setDataError] = useState(null)
   const [bodyCompKey, setBodyCompKey] = useState(0)
   const [latestTqr, setLatestTqr] = useState(null)
+  const [athleteListKey, setAthleteListKey] = useState(0)
 
   const loadAthletes = useCallback(async () => {
     setAthletesError(null)
@@ -167,6 +169,7 @@ export default function CoachDashboard() {
     setNewActivityIds(lastSeen ? new Set(acts.filter((a) => a.created_at && a.created_at > lastSeen).map((a) => a.id)) : new Set())
     if (created.length) {
       localStorage.setItem(lsKey, created.reduce((max, c) => (c > max ? c : max), created[0]))
+      setAthleteListKey((k) => k + 1) // fa sparire l'etichetta "nuova" per questo atlete nell'elenco
     }
   }, [selected, profile])
 
@@ -182,13 +185,15 @@ export default function CoachDashboard() {
         <h3>Atleti collegati</h3>
         {athletesError && <div className="error-box">{athletesError}</div>}
         {!athletes.length && !athletesError && <p className="muted">Nessun atleta ancora. Genera un codice invito qui sopra e condividilo.</p>}
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {athletes.map((a) => (
-            <button key={a.id} className={a.id === selected ? '' : 'secondary'} onClick={() => { setSelected(a.id); setSelectedActivityId(null) }}>
-              {a.full_name || a.id.slice(0, 8)}
-            </button>
-          ))}
-        </div>
+        {athletes.length > 0 && (
+          <AthleteList
+            key={athleteListKey}
+            coachId={profile.id}
+            athletes={athletes}
+            selected={selected}
+            onSelect={(id) => { setSelected(id); setSelectedActivityId(null) }}
+          />
+        )}
       </div>
 
       {athlete && (
